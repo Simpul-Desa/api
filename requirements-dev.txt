@@ -1,0 +1,9 @@
+pytest
+pytest-cov
+anyio
+black
+isort
+ruff
+mypy
+PyYAML
+types-PyYAML

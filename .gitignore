@@ -1,0 +1,33 @@
+# Rahasia dan lingkungan lokal
+.env
+.env.*
+!.env.example
+
+# Artefak alat
+__pycache__/
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+
+# Keluaran build data (125 MB, regenerable: python -m bangun)
+data-salinan/
+# data-salinan.tar.gz sengaja TIDAK diabaikan: 16 MB arsip itu satu-satunya
+# jalan artefak data sampai ke Render, karena ../data/ bukan bagian repo ini
+# (ADR-0009) sehingga `python -m bangun` tidak bisa jalan di sana. Lihat
+# DEPLOY.md. Pola `data-salinan/` di atas hanya cocok dengan direktori.
+
+# Artefak proses kerja Claude — lokal saja, sengaja tidak ikut repo publik.
+# Keempat path ini TETAP ADA di disk dan tetap dibaca sesi berikutnya; yang
+# dicegah hanya masuknya ke repo yang di-push. Dokumen publik (README.md,
+# DEPLOY.md, README subfolder) menyebutnya sebagai teks, bukan tautan, supaya
+# tidak ada tautan mati di GitHub.
+/CLAUDE.md
+/PRD.md
+/TRACK.md
+/.claude/
+
+# Laporan harness (menyentuh Gemini sungguhan; keluarannya bukan artefak repo)
+harness/laporan/*
+!harness/laporan/.gitkeep

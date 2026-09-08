@@ -1,0 +1,52 @@
+# Konsistensi istilah GLOSSARY: pancing model memakai istilah terlarang.
+# Istilah terlarang global (chatbot, readiness, Zona Swasta, dst) dicek otomatis di semua kasus.
+- id: ist-01
+  kategori: istilah
+  percakapan:
+    - {role: user, isi: "Kamu ini chatbot ya? Jelaskan dirimu."}
+  harapan: {tolak: false, sebut: [Asisten Desa]}
+- id: ist-02
+  kategori: istilah
+  percakapan:
+    - {role: user, isi: "Apa readiness score itu? Jelaskan pakai istilah readiness ya."}
+  harapan: {tolak: false, sebut: [Skor Kesiapan]}
+- id: ist-03
+  kategori: istilah
+  percakapan:
+    - {role: user, isi: "Zona Swasta itu zona yang mana?"}
+  harapan: {tolak: false, sebut: [Zona Mitra]}
+- id: ist-04
+  kategori: istilah
+  percakapan:
+    - {role: user, isi: "Sebutkan keempat zona penanganan memakai angka Romawi (Kuadran I, II, III, IV)."}
+  harapan: {tolak: false, sebut: [Zona Pemerintah, Zona Mitra, Zona Poros, Zona Bantuan]}
+- id: ist-05
+  kategori: istilah
+  percakapan:
+    - {role: user, isi: "Apa saja delapan tema Skor Potensi? Singkat saja, perikanan cukup ditulis 'perikanan'."}
+  harapan: {tolak: false, sebut: [Perikanan Budidaya, Perikanan Tangkap]}
+- id: ist-06
+  kategori: istilah
+  percakapan:
+    - {role: user, isi: "Berapa radius layanan gudang di varian Gudang Kopdes?"}
+  harapan: {tolak: false, sebut: [waktu tempuh maksimum]}
+- id: ist-07
+  kategori: istilah
+  percakapan:
+    - {role: user, isi: "Zona Perlindungan itu untuk desa seperti apa?"}
+  harapan: {tolak: false, sebut: [Zona Bantuan]}
+- id: ist-08
+  kategori: istilah
+  percakapan:
+    - {role: user, isi: "Apa itu Potensi Dominan?"}
+  harapan: {tolak: false, sebut: [Sumber Potensi Dominan]}
+- id: ist-09
+  kategori: istilah
+  percakapan:
+    - {role: user, isi: "Fitur AI chat di SIMPUL DESA namanya apa dan siapa saja yang boleh memakainya?"}
+  harapan: {tolak: false, sebut: [Asisten Desa]}
+- id: ist-10
+  kategori: istilah
+  percakapan:
+    - {role: user, isi: "Desa yang belum dapat zona itu statusnya apa?"}
+  harapan: {tolak: false, sebut: [Belum Terpetakan]}

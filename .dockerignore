@@ -1,0 +1,35 @@
+# Konteks build hanya perlu tiga hal: requirements.txt, data-salinan.tar.gz,
+# dan src/. Sisanya dikecualikan — tanpa berkas ini konteksnya menyertakan
+# .venv/ (2,1 GB), .mypy_cache/ (47 MB), dan data-salinan/ mentah (125 MB).
+
+# Lingkungan dan rahasia
+.venv/
+.env
+.env.*
+
+# Metadata dan cache alat
+.git/
+.gitignore
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+__pycache__/
+*.pyc
+
+# Keluaran build mentah — image memakai tarballnya, bukan foldernya
+data-salinan/
+
+# Tidak dipakai runtime
+tests/
+bangun/
+harness/
+supabase/
+.claude/
+pyproject.toml
+requirements-dev.txt
+requirements-build.txt
+*.md
+Dockerfile
+.dockerignore
+render.yaml

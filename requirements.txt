@@ -1,0 +1,21 @@
+# Dependensi RUNTIME layanan (yang diimpor src/). Versi dipatok karena
+# deploy membangun ulang lingkungan dari berkas ini: proyek ini sudah pernah
+# kehilangan seluruh rate limit tanpa satu galat pun gara-gara FastAPI naik
+# ke 0.141 (lihat CLAUDE.md bagian 12), dan `pip install` tanpa patokan
+# mengulangi kelas kegagalan itu di produksi.
+#
+# Dependensi skrip build ada di requirements-build.txt, alat pengembangan di
+# requirements-dev.txt. Image Docker hanya memasang berkas ini.
+fastapi==0.141.1
+uvicorn==0.52.4
+pydantic-settings==2.15.0
+httpx==0.28.1
+PyJWT[crypto]==2.13.0
+slowapi==0.1.10
+google-genai==2.22.0
+requests==2.34.2
+cloudscraper==1.2.71
+googlenewsdecoder==0.1.7
+beautifulsoup4==4.15.0
+lxml==6.1.3
+reportlab==5.0.1

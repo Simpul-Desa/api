@@ -1,0 +1,28 @@
+# Konfigurasi alat pengembangan api/ — bukan paket terdistribusi.
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
+
+[tool.ruff]
+line-length = 88
+
+[tool.mypy]
+python_version = "3.14"
+disallow_untyped_defs = true
+warn_return_any = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["pandas.*", "sklearn.*", "shapely.*", "eksperimen_knn2", "slowapi.*", "limits.*", "requests.*", "cloudscraper.*", "googlenewsdecoder.*", "bs4.*", "reportlab.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=src --cov=bangun --cov-report=term-missing"
+markers = [
+    "unit: uji unit murni",
+    "integration: uji lintas komponen",
+]

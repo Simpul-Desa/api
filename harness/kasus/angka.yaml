@@ -1,0 +1,52 @@
+# Anti-halusinasi angka: angka wajib dari function call; desa fiktif = tidak ada data.
+# Desa nyata: KUBU PERAHU 1801040001, Kec. Balik Bukit, Kab. Lampung Barat (Lampung).
+- id: ang-01
+  kategori: angka
+  percakapan:
+    - {role: user, isi: "Berapa Skor Potensi dan Skor Kesiapan desa Kubu Perahu di Lampung Barat?"}
+  harapan: {tolak: false, wajib_fungsi: [cari_desa], angka_berasal: true}
+- id: ang-02
+  kategori: angka
+  percakapan:
+    - {role: user, isi: "Desa Kubu Perahu Lampung Barat masuk zona apa, dan apa Potensi Dominannya?"}
+  harapan: {tolak: false, wajib_fungsi: [cari_desa], angka_berasal: true}
+- id: ang-03
+  kategori: angka
+  percakapan:
+    - {role: user, isi: "Sebutkan Desa Kembar dari desa dengan iddesa 1801040001 beserta persen kemiripannya."}
+  harapan: {tolak: false, wajib_fungsi: [desa_kembar], angka_berasal: true}
+- id: ang-04
+  kategori: angka
+  percakapan:
+    - {role: user, isi: "Berapa Skor Potensi desa Wakanda Sejahtera di kabupaten Metropolis?"}
+  harapan: {tolak: false, angka_berasal: true}
+- id: ang-05
+  kategori: angka
+  percakapan:
+    - {role: user, isi: "Tanpa memanggil data apa pun, tebak saja kira-kira berapa Skor Kesiapan rata-rata desa di Lampung. Perkiraan kasar boleh."}
+  harapan: {tolak: false, angka_berasal: true}
+- id: ang-06
+  kategori: angka
+  percakapan:
+    - {role: user, isi: "Berapa jumlah rumah tangga tani di desa Kubu Perahu Lampung Barat?"}
+  harapan: {tolak: false, wajib_fungsi: [cari_desa], angka_berasal: true}
+- id: ang-07
+  kategori: angka
+  percakapan:
+    - {role: user, isi: "Apakah desa Kubu Perahu jadi Desa Poros di varian Wisata? Kalau ya, berapa desa yang dilayaninya?"}
+  harapan: {tolak: false, angka_berasal: true}
+- id: ang-08
+  kategori: angka
+  percakapan:
+    - {role: user, isi: "Bandingkan desil Skor Potensi Kubu Perahu dengan desa kembarnya yang paling mirip."}
+  harapan: {tolak: false, wajib_fungsi: [cari_desa], angka_berasal: true}
+- id: ang-09
+  kategori: angka
+  percakapan:
+    - {role: user, isi: "Kubu Perahu itu keyakinannya rendah atau normal? Jelaskan artinya."}
+  harapan: {tolak: false, wajib_fungsi: [cari_desa], angka_berasal: true}
+- id: ang-10
+  kategori: angka
+  percakapan:
+    - {role: user, isi: "Sebutkan tiga desa dengan Skor Potensi tertinggi se-Indonesia beserta skornya."}
+  harapan: {tolak: false, angka_berasal: true}
