@@ -29,9 +29,9 @@ dan Laporan Desa.
 | Kode Python `src/` | 84 berkas, ±6.700 baris |
 | Kode uji `tests/` | 55 berkas uji, ±14.000 baris |
 
-Artefak deployment Render sudah ada dan image-nya terverifikasi jalan
-(`Dockerfile`, `render.yaml`); yang belum dilakukan hanya menekan deploy.
-Langkahnya di [DEPLOY.md](./DEPLOY.md).
+**Live di Railway:** `https://simpul-desa-api-production.up.railway.app`
+— dideploy 8 September 2026 dan lolos sepuluh cek verifikasi. Langkah,
+anggaran biaya, dan jebakannya di [DEPLOY.md](./DEPLOY.md).
 
 ## Mulai cepat
 
@@ -82,7 +82,6 @@ api/
 ├── data-salinan/   keluaran build (gitignored, 125 MB, regenerable)
 ├── .claude/        rencana + laporan PRP per fase, aturan ECC, aturan gaya
 ├── Dockerfile      image runtime, dua tahap (bongkar arsip data, lalu layanan)
-├── render.yaml     blueprint Render — satu web service Docker
 ├── data-salinan.tar.gz  arsip artefak data (16 MB), SENGAJA ter-commit
 ├── PRD.md          kontrak produk dan kontrak API (lokal saja)
 ├── DEPLOY.md       langkah deploy, anggaran memori, jebakan produksi
@@ -361,11 +360,12 @@ membakar kuota; penjaganya `tests/chat/test_harness_terpisah.py`.
 
 ## Deploy
 
-Satu web service Docker di Render, didefinisikan
-[`render.yaml`](./render.yaml). Langkah, verifikasi, dan jebakannya di
-[DEPLOY.md](./DEPLOY.md); di sini hanya bentuk besarnya.
+Satu service Docker di Railway, dideploy dari direktori lokal dengan
+`railway up` — service ini sengaja TIDAK tersambung repo. Langkah,
+verifikasi, anggaran biaya, dan jebakannya di [DEPLOY.md](./DEPLOY.md); di
+sini hanya bentuk besarnya.
 
-Artefak data TIDAK dibangun di sisi Render. `python -m bangun` membaca
+Artefak data TIDAK dibangun di sisi host. `python -m bangun` membaca
 `../data/`, yang bukan bagian repo ini (ADR-0009), jadi folder itu tidak
 pernah ada di lingkungan build. Yang dikirim adalah
 `data-salinan.tar.gz` — 16 MB terkompresi dari 125 MB, ikut ter-commit,
@@ -376,21 +376,23 @@ ditolak ada di
 [ADR-0011](../docs/adr/0011-artefak-data-api-tarball-ter-commit.md).
 
 ```bash
-docker build --platform linux/amd64 -t simpul-desa-api .
+railway up --detach -m "<ringkasan>"          # deploy
+railway deployment list --json | head -40      # tunggu SUCCESS
+
+docker build --platform linux/amd64 -t simpul-desa-api .   # uji image lokal
 docker run --rm -p 8000:8000 -e LINGKUNGAN=dev simpul-desa-api
 ```
 
 Dua hal yang mengikat image dan tidak boleh dilepas:
 
 - **`--proxy-headers` di `CMD`.** Tanpanya `request.client.host` selalu
-  berisi IP proxy Render, dan `get_remote_address` slowapi menaruh seluruh
+  berisi IP proxy host, dan `get_remote_address` slowapi menaruh seluruh
   pemanggil dalam satu bucket `LAJU_BAWAAN` — satu pengunjung ramai
   membuat semua orang kena 429.
 - **`maxsize` cache diturunkan lewat environment.** Muat `Simpanan` saat
   start terukur 164 MB, satu entri cache jalur ekonomi ±103 MB, satu entri
-  kartu ±13 MB. Dengan bawaan pengembangan, instance 512 MB dimatikan OOM
-  tanpa satu baris log dari aplikasi. Nilai produksinya ada di
-  `render.yaml`, perhitungannya di DEPLOY.md.
+  kartu ±13 MB. Railway menagih pemakaian nyata, jadi ini sekaligus tombol
+  biaya; nilai produksinya 4/1/4/8 dan perhitungannya di DEPLOY.md.
 
 ## Mutu kode
 
@@ -412,7 +414,7 @@ signature fungsi butuh anotasi. Konfigurasi ketiganya di `pyproject.toml`.
 |---|---|
 | `README.md` | berkas ini — peta operasional |
 | `PRD.md` | kontrak produk dan kontrak API, 13 bagian. Lokal saja |
-| `DEPLOY.md` | deploy Render: langkah, anggaran memori terukur, jebakan produksi |
+| `DEPLOY.md` | deploy Railway: langkah, verifikasi, anggaran biaya dan memori, jebakan produksi |
 | `CLAUDE.md` | aturan kerja sesi + jebakan teknis yang sudah terbukti. Lokal saja |
 | `TRACK.md` | papan tugas, satu subbab per sesi. Lokal saja |
 | `src/README.md` | peta modul aplikasi + cara menambah domain baru |

@@ -32,4 +32,3 @@ requirements-build.txt
 *.md
 Dockerfile
 .dockerignore
-render.yaml

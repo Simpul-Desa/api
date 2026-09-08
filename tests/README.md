@@ -136,7 +136,7 @@ sudah dibayar. Alasan tiap-tiapnya di `../CLAUDE.md` §12 (lokal saja).
 | `admin/test_service.py::test_jendela_sampel_penyegaran_cukup_untuk_sepuluh_desa_teratas` | `MAKS_ITEM` naik tanpa jendela sampelnya, sepuluh desa teratas jadi salah tanpa galat |
 | `laporan/test_pdf.py::test_satu_halaman_tidak_dianggap_dua` | `pdf.count(b"/Type /Page")` ikut menghitung `/Type /Pages`, sehingga assert pemenggalan lolos tanpa membuktikan apa pun |
 | `test_config.py::test_maks_cache_env_sampai_ke_lru_cache_di_proses_baru` | rantai `MAKS_CACHE_*` -> `Pengaturan` -> `maxsize` putus, dan instance 512 MB kehabisan memori tanpa satu baris log |
-| `{kartu,jalur_ekonomi,citra_potensi,desa_kembar}/test_service.py::test_maxsize_cache_mengikuti_pengaturan` | `maxsize` dipatok mati kembali, membuat tombol memori `render.yaml` tidak berpengaruh |
+| `{kartu,jalur_ekonomi,citra_potensi,desa_kembar}/test_service.py::test_maxsize_cache_mengikuti_pengaturan` | `maxsize` dipatok mati kembali, membuat tombol memori `MAKS_CACHE_*` di produksi tidak berpengaruh |
 
 ## Menambah uji
 

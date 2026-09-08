@@ -2,7 +2,7 @@
 #
 # Artefak data TIDAK dibangun di sini. `python -m bangun` membaca `../data/`,
 # yang bukan bagian repo ini (ADR-0009: `api/` repo sendiri), jadi folder itu
-# tidak pernah ada di lingkungan build Render. Yang dipakai adalah
+# tidak pernah ada di lingkungan build host mana pun. Yang dipakai adalah
 # `data-salinan.tar.gz` — hasil build lokal yang ikut ter-commit. Cara
 # menyegarkannya ada di DEPLOY.md.
 
@@ -45,9 +45,9 @@ USER layanan
 
 EXPOSE 8000
 
-# `--proxy-headers` + `--forwarded-allow-ips` WAJIB di belakang proxy Render.
+# `--proxy-headers` + `--forwarded-allow-ips` WAJIB di belakang proxy hosting.
 # Tanpa keduanya `request.client.host` selalu berisi IP proxy, dan
 # `get_remote_address` slowapi menaruh SELURUH pemanggil dalam satu bucket
 # `LAJU_BAWAAN` — satu pengunjung ramai membuat semua orang kena 429.
-# `${PORT:-8000}`: Render menyuntikkan PORT, pengembangan lokal tidak.
+# `${PORT:-8000}`: host menyuntikkan PORT, pengembangan lokal tidak.
 CMD ["sh", "-c", "exec uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]

@@ -1,227 +1,250 @@
-# Deploy `api/` ke Render
+# Deploy `api/` ke Railway
 
-Layanan berjalan sebagai satu web service Docker di Render. Blueprint-nya
-[`render.yaml`](./render.yaml), image-nya [`Dockerfile`](./Dockerfile).
-Peta folder ada di [README.md](./README.md); kontrak produk di
-`PRD.md` (lokal saja).
+Layanan berjalan sebagai satu service Docker di Railway, dideploy dari
+direktori lokal — bukan dari repo. Peta folder ada di [README.md](./README.md).
 
-Terverifikasi lokal 8 September 2026: image `linux/amd64` dibangun, dijalankan,
-dan disentuh — `/health`, `/api/wilayah/ringkasan`, `/api/model/kartu/{iddesa}`
-(dengan `ETag` + 304), dan `/openapi.json` semuanya 200; rute bertoken 503
-karena Supabase belum disetel, sesuai desain.
+**Live:** `https://simpul-desa-api-production.up.railway.app`
 
-## Kenapa data tidak dibangun di Render
+| | |
+|---|---|
+| Project | `simpul-desa-api` · `0f2e654e-ce73-4263-b1b5-945c613af13d` |
+| Service | `simpul-desa-api` · `a4fe5ee2-9e35-42d0-8fe1-d8d4f4f9089d` |
+| Environment | `production` · `f9b3a922-b215-4d5b-be25-105382ef474f` |
+| Region | asia-southeast1 (bawaan workspace) |
+| Deploy pertama | 8 September 2026, `BUILDING → DEPLOYING → SUCCESS` dalam 35 detik |
 
-`python -m bangun` membaca `../data/`. Folder itu **bukan** bagian repo ini —
-`api/` repo tersendiri ([ADR-0009](../docs/adr/0009-dua-repo-git-akar-dan-api.md)) —
-jadi begitu repo ini di-clone Render, `../data/` tidak ada. Membiarkan build
-mencoba jalan berarti layanan boot dengan semua endpoint membalas 503
-`DATA_BELUM_SIAP`.
+## Kenapa dari direktori lokal, bukan dari repo
 
-Karena itu artefaknya dikirim sebagai **`data-salinan.tar.gz` yang ikut
-ter-commit**: 16 MB terkompresi (dari 125 MB, 364 berkas), jauh di bawah batas
-berkas GitHub. `Dockerfile` membongkarnya di tahap build terpisah supaya
-arsipnya tidak tinggal di image jadi. Keputusan itu beserta lima alternatif
-yang ditolak — build di sisi Render, commit folder mentah, aset GitHub
-Release, registry image, dan Git LFS — tercatat di
-[ADR-0011](../docs/adr/0011-artefak-data-api-tarball-ter-commit.md).
+`railway up` mengarsipkan working tree, mengunggahnya, dan membangun
+`Dockerfile` di sisi Railway. Service ini sengaja TIDAK tersambung repo —
+`repoTriggers` kosong, bisa diperiksa sendiri:
 
-Konsekuensinya, dan ini yang paling mudah lupa: **data di produksi hanya
-berubah kalau tarball-nya diperbarui dan di-commit.** Menjalankan
-`python -m bangun` di mesin sendiri tidak mengubah apa pun di Render.
+```bash
+railway api 'query($id: String!) { service(id: $id) { repoTriggers { edges { node { repository } } } } }' \
+  --variables '{"id":"a4fe5ee2-9e35-42d0-8fe1-d8d4f4f9089d"}'
+```
 
-## Prasyarat
+Tiga alasannya:
 
-- Repo `api/` sudah ada di GitHub (atau GitLab/Bitbucket) dan bisa diakses akun
-  Render.
-- Proyek Supabase sudah berjalan dengan kedelapan migrasi terpasang — lihat
-  [`supabase/README.md`](./supabase/README.md).
-- Dua kunci Gemini: satu untuk panen Berita Desa, satu untuk Asisten Desa.
-- Docker lokal, hanya bila mau menguji image sebelum push.
+- Artefak data tidak bisa dibangun di sisi host. `python -m bangun` membaca
+  `../data/`, yang bukan bagian repo `api/` ([ADR-0009](../docs/adr/0009-dua-repo-git-akar-dan-api.md)),
+  jadi folder itu tidak pernah ada di lingkungan build mana pun. Yang dipakai
+  `data-salinan.tar.gz` (16 MB terkompresi dari 125 MB) yang ikut ter-commit —
+  keputusannya di [ADR-0011](../docs/adr/0011-artefak-data-api-tarball-ter-commit.md).
+- Tidak bergantung izin GitHub App di organisasi, dan tidak peduli repo privat
+  atau publik.
+- Riwayat commit folder ini padat dokumen. Auto-deploy on push berarti tiap
+  commit `docs:` membangun ulang dan me-restart service — mengosongkan state
+  pembatas laju in-memory dan membunuh pekerjaan penyegaran yang sedang
+  berjalan, demi commit yang tidak menyentuh satu baris kode.
 
-## Langkah
+Yang ditukar: tidak ada auto-deploy, dan versi yang hidup bisa berbeda dari
+isi git tanpa jejak. Produksi hanya bergerak kalau `railway up` dijalankan.
 
-### 1. Segarkan arsip data
+## Sekali saja, per mesin
 
-Jalankan dari `api/`, setiap kali keluaran `../data/` berubah:
+```bash
+brew install railway          # atau: npm i -g @railway/cli
+railway login                 # membuka browser; sesi CLI terpisah dari login web
+railway setup agent -y        # opsional: pasang MCP + skill Railway
+```
+
+`railway setup agent` menulis entri MCP ke `~/.claude.json` dan tidak menyentuh
+`.mcp.json` proyek. Butuh CLI ≥5.44.0.
+
+## Deploy
+
+```bash
+cd api/
+railway up --detach -m "<ringkasan perubahan>"
+```
+
+`--detach` mengembalikan prompt setelah unggahan selesai. **Status `SUCCESS`
+wajib diamati sebelum menyebut deploy berhasil** — keluar dengan kode 0 hanya
+berarti unggahannya sampai:
+
+```bash
+railway deployment list --json | head -40
+```
+
+Yang diunggah dibatasi `.gitignore`, jadi `.venv/`, `data-salinan/` mentah
+125 MB, cache alat, dan `.env` tidak ikut. `data-salinan.tar.gz` ikut karena
+pola `data-salinan/` bergaris miring ekor hanya cocok dengan direktori.
+
+## Menyegarkan data
+
+Data di produksi hanya berubah lewat tarball baru. Menjalankan
+`python -m bangun` di mesin sendiri tidak mengubah apa pun yang sudah hidup.
 
 ```bash
 ../.venv/bin/python -m bangun          # bangun ulang data-salinan/
 rm -f data-salinan.tar.gz
-# macOS (bsdtar):
 tar --no-xattrs --no-mac-metadata --numeric-owner --uid 0 --gid 0 \
     -czf data-salinan.tar.gz data-salinan
-# Linux (GNU tar):
-# tar --numeric-owner --owner=0 --group=0 -czf data-salinan.tar.gz data-salinan
+# Linux (GNU tar): tar --numeric-owner --owner=0 --group=0 -czf data-salinan.tar.gz data-salinan
+tar tzf data-salinan.tar.gz | wc -l   # 379 entri
+railway up --detach -m "segarkan artefak data"
 ```
 
 `--no-xattrs --no-mac-metadata` bukan hiasan: tanpa keduanya arsip dari macOS
 membawa atribut `com.apple.provenance`, dan `tar` di dalam image Linux
 memuntahkan satu baris `Ignoring unknown extended header keyword` per berkas —
-364 baris peringatan di log build setiap kali.
+364 baris peringatan di setiap log build.
 
-Verifikasi sebelum commit:
+Verifikasi tarball benar-benar naik: `/health` menyajikan `versi_data` (hash
+manifest) dan `tanggal_data`. Bandingkan dengan `data-salinan/manifest.json`
+lokal. `versi_data` kosong berarti arsipnya tidak sampai ke image.
+
+## Variabel environment
+
+21 variabel, tersimpan di Railway. Sumber lokalnya `.env.deploy` (gitignored,
+izin 600) — bukan berkas yang dibaca aplikasi, hanya bahan untuk menyetel.
 
 ```bash
-tar tzf data-salinan.tar.gz | wc -l    # harus 379 entri
-ls -lh data-salinan.tar.gz             # ±16 MB
+railway variable list --service simpul-desa-api --json
+railway variable set KUNCI=nilai --service simpul-desa-api --skip-deploys
 ```
 
-### 2. Uji image di lokal (opsional, disarankan)
+**Pakai `--skip-deploys`** saat menyetel banyak variabel sekaligus. Tanpanya
+setiap `set` memicu satu deploy — 21 variabel jadi 21 deploy.
+
+Tiga nilai yang berbeda dari `.env.example` bawaan pengembangan:
+
+| Variabel | Produksi | Kenapa |
+|---|---|---|
+| `LINGKUNGAN` | `produksi` | menyalakan validator boot: ORIGIN_APP wajib https, kredensial Supabase wajib terisi, `WEB_CONCURRENCY` wajib 1 |
+| `MAKS_CACHE_KARTU/JALUR/CITRA/KEMBAR` | `4` / `1` / `4` / `8` | bawaan 16/4/16/16 menembus 700 MB; lihat Anggaran memori |
+| `ORIGIN_APP` | domain dasbor | lihat Menyambungkan dasbor |
+
+## Verifikasi
 
 ```bash
-docker build --platform linux/amd64 -t simpul-desa-api .
-docker run --rm -p 8000:8000 -e LINGKUNGAN=dev simpul-desa-api
-curl -s localhost:8000/health
-```
+BASIS=https://simpul-desa-api-production.up.railway.app
 
-`--platform linux/amd64` penting di Mac Apple Silicon: Render menjalankan
-amd64, dan membangun arm64 saja menyembunyikan masalah ketersediaan wheel.
-`LINGKUNGAN=dev` dipakai supaya boot tidak menuntut kredensial Supabase —
-untuk sekadar membuktikan image hidup dan data terbaca.
-
-### 3. Push, lalu pasang blueprint
-
-```bash
-git add data-salinan.tar.gz Dockerfile .dockerignore render.yaml DEPLOY.md \
-        requirements.txt requirements-build.txt
-git commit -m "chore: artefak deployment Render"
-git push -u origin <cabang>
-```
-
-Di Dashboard Render: **New → Blueprint**, pilih repo ini. Render membaca
-`render.yaml` dan meminta lima nilai yang sengaja tidak ada di repo:
-
-| Variabel | Isi |
-|---|---|
-| `ORIGIN_APP` | URL **https** dasbor `app/`, tanpa garis miring ekor. Ini satu-satunya origin yang boleh mengirim non-`GET` dan memakai endpoint bertoken |
-| `SUPABASE_URL` | `https://<project-ref>.supabase.co`, tanpa garis miring ekor |
-| `SUPABASE_SERVICE_ROLE_KEY` | kunci service role (Settings → API). Rahasia sisi server |
-| `GEMINI_API_KEY` | kunci panen Berita Desa |
-| `GEMINI_API_KEY_CHAT` | kunci Asisten Desa. **Harus berbeda** dari yang di atas |
-
-Kelimanya wajib terisi sebelum deploy pertama. `render.yaml` menyetel
-`LINGKUNGAN=produksi`, dan di luar `dev` boot **gagal keras** bila
-`ORIGIN_APP` bukan https atau kredensial Supabase kosong (`src/config.py`).
-Itu disengaja: layanan yang jalan pincang dengan CORS mempercayai localhost
-lebih buruk daripada layanan yang menolak start.
-
-### 4. Verifikasi
-
-```bash
-BASIS=https://<nama-service>.onrender.com
 curl -s $BASIS/health
 curl -s $BASIS/api/wilayah/ringkasan
-curl -sI $BASIS/api/model/kartu/1801040001 | grep -iE 'etag|cache-control'
+curl -s -D - -o /dev/null $BASIS/api/model/kartu/1801040001 | grep -iE 'etag|cache-control'
+curl -s -o /dev/null -w '%{http_code}\n' $BASIS/api/model/peta-peran
 ```
 
-Yang harus terlihat:
+Hasil yang benar, terukur pada deploy 8 September 2026:
 
-- `/health` membalas `versi_data` (hash manifest) dan `tanggal_data`. Kalau
-  keduanya kosong, arsip data tidak sampai ke image.
-- `/api/wilayah/ringkasan` melaporkan 5 provinsi, 97 kabupaten, 17.467 desa.
-- Rute kartu membawa `ETag` dan `Cache-Control: public, max-age=3600`.
-- Rute bertoken (`/api/model/peta-peran`) membalas 401 tanpa token, bukan 503.
-  503 di situ berarti kredensial Supabase belum terbaca.
-- `$BASIS/docs` terbuka — bagian kontrak publik menurut PRD bagian 3, sengaja
-  tidak disembunyikan di produksi.
-
-### 5. Sambungkan dasbor
-
-Setel basis URL API di `../app/` ke `$BASIS`, dan pastikan `ORIGIN_APP` di
-Render sama persis dengan origin dasbor. Cocokkan skema, host, dan port —
-`_cocok_publik` di `src/middleware/cors.py` membandingkan origin secara tepat,
-bukan per pola.
-
-## Anggaran memori
-
-Instance 512 MB tidak muat kalau cache dibiarkan seagresif bawaan
-pengembangan. Angka terukur di mesin ini:
-
-| Komponen | Terukur |
+| Cek | Harapan |
 |---|---|
-| Muat `Simpanan` saat start | 164 MB |
-| Container idle setelah menyentuh rute anonim | 171 MiB |
-| Satu entri cache jalur ekonomi (`hasil_komoditas.json`, 15,6 MB di disk) | ±103 MB |
-| Satu entri cache kartu kabupaten (1,9 MB di disk) | ±13 MB |
-| Satu entri cache citra potensi / desa kembar | jauh di bawah 1 MB |
+| `/health` | 200 · `versi_data` `c5cbcb06e251…` · `tanggal_data` `2026-09-07` |
+| `/api/wilayah/ringkasan` | 200 · 5 provinsi, 97 kabupaten, 17.467 desa |
+| kartu | 200 · `etag` = hash build · `cache-control: public, max-age=3600` |
+| kartu + `If-None-Match` | 304 |
+| `/api/model/peta-peran` tanpa token | **401**, bukan 503 |
+| amplop galat (`iddesa` ngawur) | 404 · `{"sukses":false,…"kode":"DESA_TIDAK_ADA"…}` |
+| `DELETE /health` | 405 |
+| header rate limit | `x-ratelimit-limit: 120`, `remaining` menurun |
+| CORS `GET` publik | `access-control-allow-origin: *` |
+| `/openapi.json`, `HEAD /health` | 200 |
 
-Perbandingannya bukan linear terhadap ukuran berkas: JSON 15,6 MB menjadi
-objek Python ±103 MB, sekitar tujuh kali. Itu sebabnya `maxsize` empat cache
-dijadikan variabel environment (`MAKS_CACHE_KARTU`, `MAKS_CACHE_JALUR`,
-`MAKS_CACHE_CITRA`, `MAKS_CACHE_KEMBAR`) dan diturunkan di `render.yaml`:
+**401 pada rute bertoken adalah cek terpenting.** Itu bukti kredensial
+Supabase terbaca dan gerbang peran hidup. **503** di situ berarti `SUPABASE_URL`
+atau `SUPABASE_SERVICE_ROLE_KEY` tidak sampai.
 
-| Variabel | Bawaan dev | `render.yaml` | Beban puncak di produksi |
-|---|---|---|---|
-| `MAKS_CACHE_JALUR` | 4 | 1 | ±103 MB |
-| `MAKS_CACHE_KARTU` | 16 | 4 | ±52 MB |
-| `MAKS_CACHE_CITRA` | 16 | 4 | beberapa MB |
-| `MAKS_CACHE_KEMBAR` | 16 | 8 | beberapa MB |
+## Anggaran memori dan biaya
 
-Total puncak ±330 MB dari 512 MB — sisa ±180 MB untuk lonjakan permintaan dan
-perakitan PDF. Dengan bawaan pengembangan, angka yang sama menembus 700 MB dan
-instance dimatikan OOM tanpa satu baris log dari aplikasi.
+Railway menagih pemakaian nyata, bukan alokasi — jadi tuning cache LRU
+langsung jadi penghematan uang. Tarifnya RAM $10/GB/bulan, CPU
+$20/vCPU/bulan, egress $0,05/GB.
 
-Nilai 0 dan negatif ditolak saat boot: `lru_cache` membaca keduanya sebagai
-"tanpa cache", yang membuat setiap permintaan mem-parse ulang berkas 15,6 MB —
-kegagalan performa senyap, bukan galat.
+| Komponen | Terukur | Biaya/bulan |
+|---|---|---|
+| Muat `Simpanan` saat start | 164 MB | — |
+| RAM idle setelah rute anonim | 171 MiB = 0,167 GB | $1,67 |
+| RAM puncak dengan `MAKS_CACHE_*` produksi | ±330 MB = 0,322 GB | $3,22 |
+| CPU, API baca-saja | ±0,03 vCPU | $0,60 |
+| Egress, misal 1 GB JSON | | $0,05 |
 
-## Plan dan region
+Rentang realistis **$2,30–$3,90 per bulan**.
 
-`render.yaml` memakai `plan: free` dan `region: singapore`.
+Perbandingannya tidak linear terhadap ukuran berkas: `hasil_komoditas.json`
+15,6 MB di disk menjadi ±103 MB objek Python — tujuh kali. Satu entri kartu
+kabupaten 1,9 MB menjadi ±13 MB. Itu sebabnya `MAKS_CACHE_JALUR` diturunkan
+ke 1. Nol dan negatif ditolak saat boot: `lru_cache` membaca keduanya sebagai
+"tanpa cache", yang membuat setiap permintaan mem-parse ulang berkas 15,6 MB.
 
-- **`free`** ikut spin-down setelah menganggur. Permintaan pertama sesudahnya
-  menunggu cold start: tarik image, boot uvicorn, muat `Simpanan` 164 MB.
-  Untuk demo berjuri, naikkan ke **`starter`** — RAM-nya sama 512 MB, yang
-  hilang hanya spin-down-nya.
-- **`singapore`** region terdekat ke Indonesia. Ganti hanya sebelum service
-  dibuat; region tidak bisa dipindah setelahnya.
+**Trial $5 berlaku 30 hari, sekali.** Sesudahnya Free plan memberi $1 kredit
+per bulan — sekitar sepuluh hari layanan ini. Kalau kredit habis, Railway
+menghentikan seluruh workload. Pantau tab Usage; kalau lebih cepat dari
+perkiraan, turunkan `MAKS_CACHE_*` ke 2/1/2/4 (puncak ±250 MB).
+
+## Menyambungkan dasbor `app/`
+
+Dasbor Next.js dideploy terpisah (Vercel). Dua kabel yang harus disambung,
+keduanya tanpa build ulang di sisi API:
+
+```bash
+# 1. di app/ — basis URL API
+NEXT_PUBLIC_API_BASE=https://simpul-desa-api-production.up.railway.app
+
+# 2. di api/ — origin yang diizinkan untuk non-GET dan rute bertoken
+railway variable set ORIGIN_APP=https://<domain-dasbor> --service simpul-desa-api
+```
+
+`ORIGIN_APP` sekarang masih menunjuk domain API sendiri — nilai sementara
+supaya boot lolos dan verifikasi curl jalan (CORS hanya berlaku untuk browser).
+
+Lewatkan langkah 2 dan dasbornya **setengah jalan**: wilayah, cari desa,
+kartu, dan geo tampil normal karena `GET` pada prefiks publik dibuka ke semua
+origin (`*`), sementara chat, laporan, admin, dan seluruh rute bertoken
+diblokir CORS. Gejalanya menyesatkan — sebagian halaman hidup, sebagian mati,
+dan penyebabnya satu variabel di sisi API.
 
 ## Jebakan
 
-- **`--proxy-headers` wajib.** Ada di `CMD` `Dockerfile`. Tanpanya
-  `request.client.host` selalu berisi IP proxy Render, dan
-  `get_remote_address` slowapi menaruh SELURUH pemanggil dalam satu bucket
-  `LAJU_BAWAAN` — satu pengunjung ramai membuat semua orang kena 429.
-  Konsekuensi yang diterima: `X-Forwarded-For` bisa dipalsukan, jadi ambang
-  per-IP adalah pertahanan terbaik-usaha, bukan jaminan.
+- **`--proxy-headers` di `CMD` Dockerfile wajib.** Di belakang proxy Railway,
+  tanpa `--proxy-headers --forwarded-allow-ips='*'` nilai
+  `request.client.host` selalu IP proxy, dan `get_remote_address` slowapi
+  menaruh SELURUH pemanggil dalam satu bucket `LAJU_BAWAAN` — satu pengunjung
+  ramai membuat semua orang kena 429. Konsekuensi yang diterima:
+  `X-Forwarded-For` bisa dipalsukan, jadi ambang per-IP adalah pertahanan
+  terbaik-usaha. Jangan mengisi field Custom Start Command di dashboard; itu
+  menimpa `CMD` dan membuang kedua bendera ini.
 - **`WEB_CONCURRENCY` harus tetap 1.** Gerbang "satu pekerjaan penyegaran pada
-  satu waktu" (yang menjawab 409) menyimpan state di memori proses. Lebih dari
-  satu worker mengubahnya diam-diam menjadi satu pekerjaan **per worker**, dan
-  tiap worker bisa memanen sampai 50 desa sekaligus
+  satu waktu" menyimpan state di memori proses; lebih dari satu worker
+  mengubahnya diam-diam menjadi satu pekerjaan per worker, dan tiap worker
+  bisa memanen sampai 50 desa sekaligus
   ([ADR-0010](../docs/adr/0010-api-satu-proses-bukan-lock-bersama.md)). Boot
   gagal bila nilainya lebih dari 1 di luar `dev`.
+- **CORS menerima SATU origin, cocok persis.** `_origin_diizinkan` di
+  `src/middleware/cors.py` membandingkan `origin == pengaturan.origin_app` —
+  tanpa daftar, tanpa pola. Preview deployment Vercel mendapat URL unik tiap
+  deploy, jadi rute bertoken selalu ditolak di preview. Uji autentikasi hanya
+  di domain produksi, atau ubah middleware untuk menerima daftar origin —
+  yang kedua mengubah jaminan CORS PRD §3 dan perlu diketok dulu.
 - **Penyegaran berita adalah pekerjaan berjam-jam.** `POST
-  /api/admin/berita/segarkan` untuk satu desa berisi 10 artikel terukur 3 menit
-  37 detik. Untuk 50 desa, jangan berharap selesai sebelum request timeout —
-  rutenya memang membalas 202 dan bekerja di latar. Di instance `free`,
-  spin-down saat menganggur bisa memotong pekerjaan latar yang masih berjalan.
-- **Restart menghapus state rate limit dan pekerjaan latar.** Keduanya
-  in-memory; tiap deploy mengosongkannya. Disengaja untuk MVP.
-- **`.env` tidak pernah masuk image.** Dikecualikan `.dockerignore`. Semua
-  konfigurasi produksi datang dari environment variable Render.
-- **Versi dependensi terpatok** di `requirements.txt`. Jangan melepasnya untuk
-  "biar dapat versi terbaru": proyek ini sudah pernah kehilangan seluruh rate
-  limit tanpa satu galat pun gara-gara FastAPI naik ke 0.141 (CLAUDE.md bagian
-  12). Seluruh versi terpatok punya wheel cp314 manylinux x86_64, jadi image
-  tidak butuh compiler; menaikkan satu versi berarti memeriksa ulang hal itu.
+  /api/admin/berita/segarkan` untuk satu desa berisi 10 artikel terukur 3
+  menit 37 detik; batasnya 50 desa per permintaan. Rutenya membalas 202 dan
+  bekerja di latar. Deploy baru me-restart proses dan membunuh pekerjaan yang
+  sedang berjalan.
+- **Restart mengosongkan state rate limit dan pekerjaan latar.** Keduanya
+  in-memory; tiap `railway up` mengosongkannya. Disengaja untuk MVP.
+- **`.env` tidak pernah ikut terunggah** karena diabaikan `.gitignore`. Semua
+  konfigurasi produksi datang dari variabel Railway. Catatan sebaliknya: kalau
+  `.env` dikeluarkan dari `.gitignore`, ia akan ikut masuk konteks build.
+- **Versi dependensi terpatok** di `requirements.txt`. Jangan melepasnya:
+  proyek ini sudah pernah kehilangan seluruh rate limit tanpa satu galat pun
+  gara-gara FastAPI naik ke 0.141 (CLAUDE.md §12). Seluruh versi terpatok
+  sudah diverifikasi punya wheel cp314 manylinux x86_64, jadi image tidak
+  butuh compiler; menaikkan satu versi berarti memeriksa ulang hal itu:
+  `pip download --only-binary=:all: --platform manylinux2014_x86_64
+  --python-version 3.14 --abi cp314 --implementation cp -r requirements.txt`.
 
 ## Yang sengaja tidak dipakai
 
-- **Build data di Render.** `../data/` tidak ada di repo ini; lihat bagian
-  pertama.
-- **Registry image (GHCR/Docker Hub).** Blueprint membangun langsung dari repo;
-  registry menambah satu langkah push manual tiap kali data berubah.
-- **Aset GitHub Release.** Memindahkan artefak ke luar versi membuat satu
-  commit tidak lagi menggambarkan dirinya sendiri.
-- **Git LFS untuk arsip data.** 16 MB muat dalam batas Git biasa; LFS menambah
-  ketergantungan pada dukungan LFS di sisi build Render.
-
-Alasan penolakan empat yang pertama — build di sisi Render, registry image,
-aset GitHub Release, Git LFS — ada di
-[ADR-0011](../docs/adr/0011-artefak-data-api-tarball-ter-commit.md), bersama
-satu alternatif kelima yang tidak muncul di daftar ini (commit
-`data-salinan/` mentah).
-- **Persistent disk.** Layanan tidak pernah menulis ke disk saat runtime.
+- **Service tersambung repo GitHub.** Alasannya di bagian pertama. Bisa
+  disambungkan belakangan (Service → Settings → Source → Connect Repo) tanpa
+  membuang apa pun; sejak itu `railway up` tidak lagi diperlukan.
+- **Build data di sisi host.** `../data/` tidak ada di lingkungan build.
+- **Registry image (GHCR/Docker Hub).** `railway up` membangun langsung dari
+  konteks lokal; registry menambah satu langkah push manual tiap kali data
+  berubah.
+- **Persistent disk.** Layanan tidak pernah menulis ke disk saat runtime — PDF
+  dirakit di `io.BytesIO`.
 - **Redis / Key Value untuk rate limit dan lock pekerjaan.** Butuh keputusan
   skema tersendiri; ADR-0010 menetapkan satu proses untuk MVP.
