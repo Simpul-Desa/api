@@ -17,7 +17,7 @@ from src.laporan.pdf import bangun_pdf
 from src.laporan.service import rakit_ringkasan
 from src.params import ParamIddesa
 
-router = APIRouter()
+router = APIRouter(tags=["Laporan Desa"])
 
 
 def _nama_provinsi(simpanan: Simpanan, idkab: str) -> str | None:

@@ -24,7 +24,7 @@ from src.exceptions import TIDAK_DITEMUKAN, GalatAPI
 from src.models import Amplop, sukses
 from src.pagination import BATAS_BAWAAN, ParamBatas, ParamHal, potong
 
-router = APIRouter(prefix="/api/model/citra-potensi", tags=["citra-potensi"])
+router = APIRouter(prefix="/api/model/citra-potensi", tags=["Citra Potensi Desa"])
 
 
 @router.get("", response_model=Amplop[list[dict[str, Any]]])

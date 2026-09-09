@@ -12,11 +12,12 @@ from src.wilayah.schemas import (
     DesaRingkas,
     Kabupaten,
     Provinsi,
+    PusatWilayah,
     RingkasanWilayah,
 )
 from src.wilayah.service import wajib_kab_dikenal, wajib_prov_dikenal
 
-router = APIRouter()
+router = APIRouter(tags=["Wilayah"])
 
 
 @router.get("/api/wilayah/provinsi", response_model=Amplop[list[Provinsi]])
@@ -46,6 +47,15 @@ async def ringkasan_wilayah(
     """Kembalikan `simpanan.ringkasan_wilayah` apa adanya — bukan daftar, tanpa meta."""
     ringkasan = wajib(simpanan.ringkasan_wilayah, "ringkasan wilayah")
     return sukses(RingkasanWilayah(**ringkasan))
+
+
+@router.get("/api/wilayah/pusat", response_model=Amplop[PusatWilayah])
+async def pusat_wilayah(
+    simpanan: Simpanan = Depends(ambil_simpanan),  # noqa: B008
+) -> Amplop[PusatWilayah]:
+    """Kembalikan `simpanan.pusat_wilayah` apa adanya — bukan daftar, tanpa meta."""
+    pusat = wajib(simpanan.pusat_wilayah, "pusat wilayah")
+    return sukses(PusatWilayah(**pusat))
 
 
 @router.get("/api/wilayah/kabupaten", response_model=Amplop[list[Kabupaten]])

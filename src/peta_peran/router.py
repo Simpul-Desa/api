@@ -22,7 +22,7 @@ from src.wilayah.service import wajib_kab_dikenal, wajib_prov_dikenal
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/model", tags=["peta-peran"])
+router = APIRouter(prefix="/api/model", tags=["Peta Peran"])
 
 
 @router.get("/peta-peran", response_model=Amplop[list[dict[str, Any]]])

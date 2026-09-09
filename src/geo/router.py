@@ -10,7 +10,7 @@ from src.exceptions import TIDAK_DITEMUKAN, GalatAPI
 from src.params import POLA_IDKAB
 from src.wilayah.service import wajib_kab_dikenal
 
-router = APIRouter()
+router = APIRouter(tags=["Batas Desa"])
 
 
 @router.get("/api/geo/desa/{idkab}")

@@ -70,5 +70,6 @@ BERKAS_METODOLOGI: list[tuple[str, str]] = [
 ]
 
 DIR_BATAS_DESA = "panen/batas_desa"
+AKHIRAN_GEO = ".geojson.gz"  # akhiran berkas keluaran tahap 5 (geo.py) & 6 (pusat.py)
 BERKAS_MODEL_KEMBAR = "machine-learning/desa-kembar/model_desa_kembar_v3.json"
 DIR_SKRIP_KEMBAR = "machine-learning/desa-kembar"

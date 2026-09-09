@@ -3,8 +3,8 @@
 Modul ini menjalankan seluruh langkah build `data-salinan/` secara
 berurutan: salin artefak kontrak, salin bahan metodologi, turunkan wilayah
 dari kartu index, precompute desa kembar (opsional), sederhanakan geometri
-batas desa (opsional), lalu tulis `manifest.json`. Dipakai sebagai skrip
-CLI lewat `python -m bangun`.
+batas desa (opsional), hitung pusat kabupaten dari geometri itu, lalu tulis
+`manifest.json`. Dipakai sebagai skrip CLI lewat `python -m bangun`.
 """
 
 import argparse
@@ -17,6 +17,7 @@ from bangun.geo import sederhanakan_semua
 from bangun.kembar import precompute_semua
 from bangun.konstanta import AKAR_DATA, DIR_BATAS_DESA, DIR_KELUARAN, TOLERANSI_GEO_BAKU
 from bangun.manifest import sha256_berkas, tulis_manifest
+from bangun.pusat import tulis_pusat_wilayah
 from bangun.salin import salin_kontrak, salin_metodologi
 from bangun.wilayah import tulis_wilayah
 
@@ -64,20 +65,25 @@ def _bangun(args: argparse.Namespace) -> dict[str, object]:
 
     Urutan tahap: salin kontrak -> salin metodologi -> turunkan wilayah ->
     (opsional) precompute desa kembar -> (opsional) sederhanakan geometri ->
-    tulis manifest. `tulis_manifest` SELALU jadi tahap terakhir, sehingga
-    kegagalan tahap mana pun sebelumnya (mis. `ValueError` dari artefak
-    kontrak yang hilang) menjamin `manifest.json` tidak pernah ditulis.
+    hitung pusat kabupaten dari geometri itu -> tulis manifest. Tahap pusat
+    TIDAK punya bendera lewati sendiri: ia membaca `dir_keluaran/geo` apa
+    adanya (kosong/belum ada -> `pusat_wilayah.json` berisi daftar kabupaten
+    kosong, bukan galat), jadi tetap aman dijalankan walau `--lewati-geo`
+    dipakai atau geo belum pernah dibangun. `tulis_manifest` SELALU jadi
+    tahap terakhir, sehingga kegagalan tahap mana pun sebelumnya (mis.
+    `ValueError` dari artefak kontrak yang hilang) menjamin `manifest.json`
+    tidak pernah ditulis.
     """
     akar_data: Path = args.akar_data
     dir_keluaran: Path = args.dir_keluaran
 
-    logger.info("Tahap 1/5: salin artefak kontrak")
+    logger.info("Tahap 1/6: salin artefak kontrak")
     entri = salin_kontrak(akar_data=akar_data, dir_keluaran=dir_keluaran)
 
-    logger.info("Tahap 2/5: salin bahan metodologi")
+    logger.info("Tahap 2/6: salin bahan metodologi")
     entri += salin_metodologi(akar_proyek=akar_data.parent, dir_keluaran=dir_keluaran)
 
-    logger.info("Tahap 3/5: turunkan wilayah dari kartu index")
+    logger.info("Tahap 3/6: turunkan wilayah dari kartu index")
     berkas_indeks = dir_keluaran / "kartu-ekonomi" / "indeks.json"
     indeks = json.loads(berkas_indeks.read_text(encoding="utf-8"))
     path_wilayah = tulis_wilayah(indeks, dir_keluaran)
@@ -91,18 +97,29 @@ def _bangun(args: argparse.Namespace) -> dict[str, object]:
     )
 
     if args.lewati_kembar:
-        logger.info("Tahap 4/5: dilewati (--lewati-kembar)")
+        logger.info("Tahap 4/6: dilewati (--lewati-kembar)")
     else:
-        logger.info("Tahap 4/5: precompute desa kembar")
+        logger.info("Tahap 4/6: precompute desa kembar")
         entri += precompute_semua(akar_data=akar_data, dir_keluaran=dir_keluaran)
 
     if args.lewati_geo:
-        logger.info("Tahap 5/5: dilewati (--lewati-geo)")
+        logger.info("Tahap 5/6: dilewati (--lewati-geo)")
     else:
-        logger.info("Tahap 5/5: sederhanakan geometri batas desa")
+        logger.info("Tahap 5/6: sederhanakan geometri batas desa")
         entri += sederhanakan_semua(
             akar_data / DIR_BATAS_DESA, dir_keluaran / "geo", args.toleransi_geo
         )
+
+    logger.info("Tahap 6/6: hitung pusat kabupaten dari geometri batas desa")
+    path_pusat = tulis_pusat_wilayah(dir_keluaran / "geo", dir_keluaran)
+    entri.append(
+        {
+            "path": "pusat_wilayah.json",
+            "sumber": "turunan:geo kabupaten (bbox)",
+            "sha256": sha256_berkas(path_pusat),
+            "bytes": path_pusat.stat().st_size,
+        }
+    )
 
     return tulis_manifest(dir_keluaran, entri)
 

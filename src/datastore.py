@@ -91,6 +91,7 @@ class Simpanan:
     ringkasan_kab: dict[str, Any] | None
     citra_indeks: dict[str, Any] | None
     ringkasan_wilayah: dict[str, Any] | None
+    pusat_wilayah: dict[str, Any] | None
     dir_data: Path
 
 
@@ -148,6 +149,97 @@ def _hitung_ringkasan_wilayah(
     }
 
 
+def _hitung_pusat_wilayah(
+    pusat_mentah: dict[str, Any] | None,
+    wilayah: dict[str, Any] | None,
+    desa_per_kab: dict[str, list[dict[str, Any]]] | None,
+) -> dict[str, Any] | None:
+    """Gabung pusat kabupaten mentah (`pusat_wilayah.json`) dengan `wilayah.json`.
+
+    Tiap kabupaten di `pusat_mentah` digenapi `nmkab`/`idprov` dari
+    `wilayah.json` dan `n_desa` dari `desa_per_kab`. Pusat provinsi = rerata
+    pusat kabupatennya, `n_desa`/`n_kabupaten` dijumlah dari kabupaten yang
+    sama. None bila salah satu sumber belum dimuat, bila `pusat_mentah`
+    kehilangan kunci `kabupaten`, atau bila daftar kabupaten hasil rakitan
+    (setelah dicocokkan ke `wilayah.json`) kosong — ketiganya berarti tidak
+    ada satu pusat pun yang bisa disajikan, jadi rute harus menjawab 503
+    `DATA_BELUM_SIAP` lewat `wajib()` (CLAUDE.md api §12), bukan 200 dengan
+    `{"provinsi": [], "kabupaten": []}`.
+
+    Kabupaten di `pusat_mentah` yang idkab-nya tak dikenal di `wilayah.json`
+    (mis. `pusat_wilayah.json` lebih tua dari `wilayah.json`, build selektif)
+    dilewati dengan log peringatan, bukan melempar — data build lama masih
+    harus bisa boot. Arah sebaliknya — kabupaten di `wilayah.json` yang TIDAK
+    punya entri di `pusat_mentah` — juga dicatat `logger.warning` (selisih
+    idkab), bukan dibuang senyap. Provinsi yang seluruh kabupatennya
+    dilewati (belum satu pun berpusat, mis. build pertama sebelum langkah
+    geo) ikut dilewati dengan log peringatan — tidak ada pusat yang bisa
+    dihitung tanpa satu pun kabupaten.
+    """
+    if pusat_mentah is None or wilayah is None or desa_per_kab is None:
+        return None
+
+    kabupaten_wilayah = {k["idkab"]: k for k in wilayah["kabupaten"]}
+    baris_pusat = pusat_mentah.get("kabupaten", [])
+
+    idkab_tanpa_pusat = kabupaten_wilayah.keys() - {b["idkab"] for b in baris_pusat}
+    if idkab_tanpa_pusat:
+        logger.warning(
+            "pusat_wilayah.json: %d kabupaten di wilayah.json tanpa entri pusat: %s",
+            len(idkab_tanpa_pusat),
+            sorted(idkab_tanpa_pusat),
+        )
+
+    kabupaten: list[dict[str, Any]] = []
+    for baris in baris_pusat:
+        idkab = baris["idkab"]
+        info_kab = kabupaten_wilayah.get(idkab)
+        if info_kab is None:
+            logger.warning(
+                "pusat_wilayah.json: kabupaten %s tak dikenal di wilayah.json, dilewati",
+                idkab,
+            )
+            continue
+        kabupaten.append(
+            {
+                "idkab": idkab,
+                "nmkab": info_kab["nmkab"],
+                "idprov": info_kab["idprov"],
+                "pusat": baris["pusat"],
+                "n_desa": len(desa_per_kab.get(idkab, [])),
+            }
+        )
+
+    if not kabupaten:
+        return None
+
+    provinsi: list[dict[str, Any]] = []
+    for prov in wilayah["provinsi"]:
+        idprov = prov["idprov"]
+        kab_prov = [k for k in kabupaten if k["idprov"] == idprov]
+        if not kab_prov:
+            logger.warning(
+                "pusat wilayah: provinsi %s tanpa satu pun kabupaten berpusat, dilewati",
+                idprov,
+            )
+            continue
+        n_kabupaten = len(kab_prov)
+        provinsi.append(
+            {
+                "idprov": idprov,
+                "nama": prov["nama"],
+                "pusat": [
+                    sum(k["pusat"][0] for k in kab_prov) / n_kabupaten,
+                    sum(k["pusat"][1] for k in kab_prov) / n_kabupaten,
+                ],
+                "n_desa": sum(k["n_desa"] for k in kab_prov),
+                "n_kabupaten": n_kabupaten,
+            }
+        )
+
+    return {"provinsi": provinsi, "kabupaten": kabupaten}
+
+
 def muat_simpanan(dir_data: Path) -> Simpanan:
     """Muat seluruh artefak `Simpanan` dari `dir_data` sekali saat startup.
 
@@ -170,6 +262,9 @@ def muat_simpanan(dir_data: Path) -> Simpanan:
     citra_indeks: dict[str, Any] | None = muat_json_atau_none(
         dir_data / "citra-potensi" / "indeks.json", "indeks citra potensi"
     )
+    pusat_mentah: dict[str, Any] | None = muat_json_atau_none(
+        dir_data / "pusat_wilayah.json", "pusat wilayah"
+    )
 
     indeks_per_desa = (
         _indeks_per_desa_dari_baris(indeks_kartu) if indeks_kartu is not None else None
@@ -181,6 +276,7 @@ def muat_simpanan(dir_data: Path) -> Simpanan:
         _indeks_per_desa_dari_baris(peta_peran) if peta_peran is not None else None
     )
     ringkasan_wilayah = _hitung_ringkasan_wilayah(wilayah, indeks_kartu)
+    pusat_wilayah = _hitung_pusat_wilayah(pusat_mentah, wilayah, desa_per_kab)
 
     return Simpanan(
         wilayah=wilayah,
@@ -192,6 +288,7 @@ def muat_simpanan(dir_data: Path) -> Simpanan:
         ringkasan_kab=ringkasan_kab,
         citra_indeks=citra_indeks,
         ringkasan_wilayah=ringkasan_wilayah,
+        pusat_wilayah=pusat_wilayah,
         dir_data=dir_data,
     )
 

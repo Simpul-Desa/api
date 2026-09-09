@@ -67,6 +67,7 @@ def test_jalankan_happy_path_menulis_manifest_dan_wilayah(
 
     path_artefak = {item["path"] for item in manifest["artefak"]}
     assert "wilayah.json" in path_artefak
+    assert "pusat_wilayah.json" in path_artefak
 
 
 @pytest.mark.unit

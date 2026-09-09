@@ -11,7 +11,7 @@ from src.models import Amplop, sukses
 from src.pagination import BATAS_BAWAAN, ParamBatas, ParamHal, potong
 from src.params import POLA_IDKAB
 
-router = APIRouter()
+router = APIRouter(tags=["Pencarian Desa"])
 
 
 @router.get("/api/desa/cari", response_model=Amplop[list[BarisIndeksKartu]])

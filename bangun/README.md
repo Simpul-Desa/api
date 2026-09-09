@@ -45,7 +45,16 @@ yang membuat "ada manifest" bisa dipercaya sebagai "build selesai utuh".
 | 3 | Turunkan wilayah | `wilayah.py` | `wilayah.json`: provinsi (nama dari konstanta) + kabupaten unik dari indeks kartu |
 | 4 | Precompute Desa Kembar | `kembar.py` | tetangga terdekat per desa, disimpan JSON per kabupaten |
 | 5 | Sederhanakan batas desa | `geo.py` | GeoJSON per kabupaten disederhanakan + gzip |
+| 6 | Hitung pusat kabupaten | `pusat.py` | `pusat_wilayah.json`: pusat tiap kabupaten (rerata tengah bbox per fitur/desa) dari GeoJSON tahap 5 |
 | — | Tulis manifest | `manifest.py` | `manifest.json`: entri per artefak + hash gabungan + tanggal |
+
+Tahap 6 membaca KELUARAN tahap 5 (`dir_keluaran/geo`), bukan `data/` mentah —
+tanpa bendera lewati sendiri, jadi tetap jalan walau `--lewati-geo` dipakai.
+Tapi kalau `--lewati-geo` dipakai pada `--dir-keluaran` yang bersih (`geo/`
+belum pernah dibangun sebelumnya), `pusat_wilayah.json` yang ditulis
+berisi `kabupaten` kosong; `src/datastore.py` menolak artefak kosong itu
+sebagai belum siap (503 `DATA_BELUM_SIAP`), bukan menyajikannya kosong ke
+`app/`.
 
 ## Keluaran
 
@@ -65,6 +74,7 @@ data-salinan/
 ├── jalur-ekonomi/hasil_{komoditas,gudang,cold_storage,wisata}.json
 ├── desa-kembar/<idkab>.json   turunan tahap 4
 ├── geo/<idkab>.geojson.gz     turunan tahap 5
+├── pusat_wilayah.json         turunan tahap 6, dari geo/ di atas
 └── metodologi/*.md            turunan tahap 2
 ```
 

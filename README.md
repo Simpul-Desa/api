@@ -1,4 +1,4 @@
-# `api/` — layanan backend SIMPUL DESA
+# Layanan Backend SIMPUL DESA
 
 Layanan HTTP baca-saja di atas artefak beku hasil `../data/`, ditambah tiga
 fitur dinamis: Asisten Desa (Gemini), Berita Desa (panen RSS ke Supabase), dan
@@ -23,8 +23,8 @@ dan Laporan Desa.
 
 | Ukuran | Nilai |
 |---|---|
-| Rute API terdaftar di `/openapi.json` | 24 path, 24 operasi |
-| Uji | 702 lulus, 7,4 detik |
+| Rute API terdaftar di `/openapi.json` | 25 path, 25 operasi, 13 tag |
+| Uji | 729 lulus, 6,3 detik |
 | Cakupan uji `src/` + `bangun/` | 99% (target PRD ≥80%) |
 | Kode Python `src/` | 84 berkas, ±6.700 baris |
 | Kode uji `tests/` | 55 berkas uji, ±14.000 baris |
@@ -172,6 +172,25 @@ sebelum membalas halaman kosong.
 `@router.get` — `APIRoute` FastAPI tidak menambahkan `HEAD` otomatis, dan
 satu rute dua metode membuat `operationId` bertabrakan di `/openapi.json`.
 Rute lain sengaja GET saja.
+
+### Tag dan server `/openapi.json`
+
+Setiap operasi memakai tepat satu tag, dan **nama tag adalah nama tampil**
+berbahasa Indonesia — delapan di antaranya nama fitur persis seperti di
+`../GLOSSARY.md` (Peta Peran, Kartu Ekonomi Desa, Jalur Ekonomi, Desa Kembar,
+Citra Potensi Desa, Asisten Desa, Berita Desa, Laporan Desa), lima sisanya
+kelompok pendukung (Wilayah, Pencarian Desa, Batas Desa, Kesehatan,
+Administrasi). Ketigabelasnya terdaftar berurut di `TAG_OPENAPI` pada
+[`src/main.py`](./src/main.py); urutan itulah yang dipakai `/docs` dan sidebar
+situs `../dokumentasi/`, dan `description` tiap tag menjadi isi halaman indeks
+kelompoknya di situs itu. Router domain baru wajib mengambil salah satu nama
+di daftar itu.
+
+`servers` juga diisi di `src/main.py` (`SERVER_OPENAPI`): produksi lebih
+dulu, lalu `http://localhost:8000`. Contoh kode di situs dokumentasi dirakit
+dari daftar ini. Konsekuensinya, pemilih server di `/docs` kini berbawaan
+**produksi** walau dibuka dari `localhost` — lihat jebakan di
+[CLAUDE.md](./CLAUDE.md).
 
 ## Amplop respons dan kode galat
 

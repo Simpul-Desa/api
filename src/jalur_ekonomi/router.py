@@ -29,7 +29,7 @@ from src.jalur_ekonomi.service import (
 from src.models import Amplop, sukses
 from src.pagination import BATAS_BAWAAN, ParamBatas, ParamHal, potong
 
-router = APIRouter(prefix="/api/model/jalur-ekonomi", tags=["jalur-ekonomi"])
+router = APIRouter(prefix="/api/model/jalur-ekonomi", tags=["Jalur Ekonomi"])
 
 
 async def _muat_hasil(simpanan: Simpanan, varian_str: str) -> dict[str, Any]:

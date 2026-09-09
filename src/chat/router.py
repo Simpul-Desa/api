@@ -75,7 +75,7 @@ def kunci_pengguna(request: Request) -> str:
 
 def buat_router(limiter: Limiter, pengaturan: Pengaturan) -> APIRouter:
     """Bangun `APIRouter` chat terikat ke `limiter` aplikasi (lihat docstring modul)."""
-    router = APIRouter()
+    router = APIRouter(tags=["Asisten Desa"])
 
     @router.post("/api/chat", response_model=Amplop[DataJawaban])
     @limiter.limit(pengaturan.laju_chat, key_func=kunci_pengguna)
@@ -85,27 +85,27 @@ def buat_router(limiter: Limiter, pengaturan: Pengaturan) -> APIRouter:
         badan: PermintaanChat,
         simpanan: Simpanan = Depends(ambil_simpanan),  # noqa: B008
     ) -> Amplop[DataJawaban]:
-        """Jalankan satu giliran Asisten Desa: stateless, non-streaming (PRD §5).
+        """Jalankan satu giliran Asisten Desa: stateless, non-streaming.
 
         Stateless: klien mengirim ulang SELURUH riwayat (`badan.messages`)
         di setiap permintaan — server tidak menyimpan percakapan apa pun.
         Non-streaming: satu jawaban utuh per permintaan, bukan potongan
         token bertahap.
 
-        `request` dan `response` tampak tak terpakai di badan fungsi, tapi
-        KEDUANYA WAJIB ada di signature: slowapi butuh `request` untuk
-        `key_func`, dan tanpa `response` permintaan SUKSES PERTAMA meledak
-        (`headers_enabled=True` pada `Limiter` membuat wrapper slowapi
-        menyuntik header `X-RateLimit-*` ke `response` setelah handler
-        selesai — parameter yang hilang baru ketahuan saat itu, bukan saat
-        endpoint didekorasi).
+        Ambang laju rute ini per PENGGUNA, di atas ambang global per-IP yang
+        berlaku untuk seluruh endpoint.
 
-        `meta` amplop selalu `null` — jejak fungsi, model, cacah putaran
-        alat, dan peringatan ada DI DALAM `data` (`DataJawaban`), karena
-        `src.models.Meta` mewajibkan `total`/`hal`/`batas` (milik paginasi)
-        dan PRD §6 menyatakan `meta` hanya terisi pada respons berpaginasi
-        — chat tidak berpaginasi sama sekali.
+        `meta` amplop selalu `null`. Jejak fungsi, model yang dipakai, cacah
+        putaran alat, dan peringatan ada DI DALAM `data`.
         """
+        # `request` dan `response` tampak tak terpakai di badan fungsi tapi
+        # KEDUANYA wajib ada di signature — alasannya di butir 2 dan 3
+        # docstring modul ini. Jangan dibuang.
+        #
+        # `meta` null karena `src.models.Meta` mewajibkan
+        # `total`/`hal`/`batas` (milik paginasi) sementara PRD §6 menyatakan
+        # `meta` hanya terisi pada respons berpaginasi; chat tidak
+        # berpaginasi sama sekali.
         konteks = KonteksAlat(
             simpanan=simpanan,
             klien_supabase=request.app.state.klien_supabase,

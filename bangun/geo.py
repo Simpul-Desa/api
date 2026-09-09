@@ -15,6 +15,8 @@ from pathlib import Path
 
 from shapely.geometry import mapping, shape
 
+from bangun.konstanta import AKHIRAN_GEO
+
 logger = logging.getLogger(__name__)
 
 PROPERTI_DIPERTAHANKAN = ("iddesa", "nmdesa")
@@ -88,7 +90,7 @@ def sederhanakan_semua(
     entri: list[dict[str, object]] = []
     for berkas_sumber in sorted(dir_sumber.glob("*.geojson")):
         idkab = berkas_sumber.name[:4]
-        berkas_tujuan = dir_tujuan / f"{idkab}.geojson.gz"
+        berkas_tujuan = dir_tujuan / f"{idkab}{AKHIRAN_GEO}"
 
         hasil = sederhanakan_berkas(berkas_sumber, berkas_tujuan, toleransi)
 

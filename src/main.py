@@ -8,6 +8,7 @@ import contextlib
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 import httpx
 from fastapi import Depends, FastAPI
@@ -54,6 +55,126 @@ from src.wilayah.router import router as router_wilayah
 # pernah menyandera proses yang sedang dimatikan.
 TENGGAT_SHUTDOWN_PEKERJAAN = 5.0
 
+# Daftar server `/openapi.json`. Ada di sini karena contoh kode di situs
+# `dokumentasi/` dirakit dari skema ini: tanpa `servers`, contoh cURL-nya
+# menunjuk origin situs dokumentasi itu sendiri, bukan API mana pun.
+#
+# KONSEKUENSI yang diterima: Swagger UI di `/docs` sekarang punya pemilih
+# server dan bawaannya PRODUKSI, termasuk saat dibuka di
+# `localhost:8000/docs`. Pilih `http://localhost:8000` di pemilih itu sebelum
+# memakai "Try it out" dari sesi pengembangan.
+SERVER_OPENAPI: list[dict[str, Any]] = [
+    {
+        "url": "https://simpul-desa-api-production.up.railway.app",
+        "description": "Produksi",
+    },
+    {"url": "http://localhost:8000", "description": "Pengembangan lokal"},
+]
+
+# Tag `/openapi.json`. NAMANYA adalah nama tampil — bahasa Indonesia, persis
+# seperti di `GLOSSARY.md` akar untuk delapan tag fitur — karena tag inilah yang
+# terbaca pengguna di `/docs` maupun di sidebar situs `dokumentasi/`. Urutan
+# daftar ini menentukan urutan grup di kedua tempat itu, dan `description`
+# menjadi isi halaman indeks grup di situs dokumentasi. Router domain baru wajib
+# memakai salah satu nama di sini; tanpa itu operasinya mengapung tanpa grup.
+TAG_OPENAPI: list[dict[str, Any]] = [
+    {
+        "name": "Peta Peran",
+        "description": (
+            "Menempatkan tiap desa ke satu dari empat zona penanganan, sehingga "
+            "jelas siapa yang harus bergerak lebih dulu: pemerintah, mitra "
+            "swasta, atau perlindungan sosial. Butuh peran tamu ke atas."
+        ),
+    },
+    {
+        "name": "Kartu Ekonomi Desa",
+        "description": (
+            "Profil ekonomi lengkap tiap desa tanpa satu pun formulir. Terbuka "
+            "tanpa token."
+        ),
+    },
+    {
+        "name": "Jalur Ekonomi",
+        "description": (
+            "Menyambung sekumpulan desa ke satu aset bersama di lokasi optimal, "
+            "agar skalanya cukup besar untuk hidup. Empat varian — Komoditas, "
+            "Gudang Kopdes, Cold Storage, dan Wisata. Butuh peran tamu ke atas."
+        ),
+    },
+    {
+        "name": "Desa Kembar",
+        "description": (
+            "Mencari desa yang profilnya paling mirip dengan desa yang sudah "
+            "terbukti berhasil, dengan kemiripan yang terukur. Butuh peran tamu "
+            "ke atas."
+        ),
+    },
+    {
+        "name": "Citra Potensi Desa",
+        "description": (
+            "Menemukan sentra komoditas dari pembacaan citra satelit dan peta, "
+            "tanpa desa perlu melaporkannya. Butuh peran tamu ke atas."
+        ),
+    },
+    {
+        "name": "Asisten Desa",
+        "description": (
+            "Antarmuka percakapan berbasis LLM yang menjawab hanya dari data "
+            "SIMPUL DESA dan menolak topik di luar itu. Butuh peran di atas "
+            "tamu."
+        ),
+    },
+    {
+        "name": "Berita Desa",
+        "description": (
+            "Kumpulan berita per desa hasil panen otomatis, tersimpan per "
+            "`iddesa`. Butuh peran tamu ke atas."
+        ),
+    },
+    {
+        "name": "Laporan Desa",
+        "description": (
+            "Dokumen PDF per desa yang memuat sekurangnya Peta Peran dan Kartu "
+            "Ekonomi Desa. Butuh peran pemerintah ke atas."
+        ),
+    },
+    {
+        "name": "Wilayah",
+        "description": (
+            "Daftar dan ringkasan wilayah administratif — provinsi, kabupaten, "
+            "desa — beserta titik pusatnya. Terbuka tanpa token."
+        ),
+    },
+    {
+        "name": "Pencarian Desa",
+        "description": (
+            "Pencarian desa lewat substring nama di atas indeks kartu. Terbuka "
+            "tanpa token."
+        ),
+    },
+    {
+        "name": "Batas Desa",
+        "description": (
+            "GeoJSON batas desa satu kabupaten, disajikan pra-gzip sebagai "
+            "berkas di luar amplop. Terbuka tanpa token."
+        ),
+    },
+    {
+        "name": "Kesehatan",
+        "description": (
+            "Status hidup API beserta versi dan tanggal data panen. Terbuka "
+            "tanpa token."
+        ),
+    },
+    {
+        "name": "Administrasi",
+        "description": (
+            "Pengelolaan sistem: penyegaran dan penghapusan Berita Desa, daftar "
+            "pengguna, kenaikan peran, dan status sistem. Hanya peran admin."
+        ),
+    },
+]
+
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -99,7 +220,12 @@ def create_app() -> FastAPI:
     """Bangun instance FastAPI: siapkan logging, handler galat, dan rute."""
     logging.basicConfig(level=logging.INFO)
 
-    app = FastAPI(title="SIMPUL DESA API", lifespan=_lifespan)
+    app = FastAPI(
+        title="SIMPUL DESA API",
+        lifespan=_lifespan,
+        openapi_tags=TAG_OPENAPI,
+        servers=SERVER_OPENAPI,
+    )
     daftarkan_handler(app)
 
     # Limiter dibuat per aplikasi supaya storage in-memory segar per instance

@@ -17,7 +17,7 @@ from src.exceptions import DESA_TIDAK_ADA, GalatAPI
 from src.models import Amplop, sukses
 from src.params import POLA_IDDESA
 
-router = APIRouter()
+router = APIRouter(tags=["Desa Kembar"])
 
 
 @router.get(

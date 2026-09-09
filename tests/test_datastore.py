@@ -176,6 +176,16 @@ def _bangun_data_salinan_sintetis(dir_data: Path) -> None:
         },
     )
 
+    _tulis_json(
+        dir_data / "pusat_wilayah.json",
+        {
+            "kabupaten": [
+                {"idkab": "1801", "pusat": [104.0, -5.0]},
+                {"idkab": "1802", "pusat": [106.0, -6.0]},
+            ]
+        },
+    )
+
 
 @pytest.mark.unit
 def test_dir_tanpa_manifest_kembalikan_none(tmp_path: Path) -> None:
@@ -265,6 +275,7 @@ def test_muat_simpanan_lengkap_dari_data_sintetis(tmp_path: Path) -> None:
     assert simpanan.citra_indeks["jumlah_sel"] == 1
     assert simpanan.citra_indeks["sel"][0]["target"] == "kom_prov_horti_01"
     assert simpanan.ringkasan_wilayah is not None
+    assert simpanan.pusat_wilayah is not None
 
     # indeks_per_desa: referensi ke baris yang sama (bukan salinan)
     assert simpanan.indeks_per_desa is not None
@@ -307,6 +318,7 @@ def test_muat_simpanan_artefak_hilang_kembalikan_none_tanpa_crash(
     assert simpanan.ringkasan_kab is None
     assert simpanan.citra_indeks is None
     assert simpanan.ringkasan_wilayah is None
+    assert simpanan.pusat_wilayah is None
 
 
 @pytest.mark.unit
@@ -321,6 +333,7 @@ def test_muat_simpanan_artefak_korup_kembalikan_none_dan_warning(
 
     assert simpanan.wilayah is None
     assert simpanan.ringkasan_wilayah is None
+    assert simpanan.pusat_wilayah is None
     assert any(
         record.levelno == logging.WARNING and "wilayah" in record.getMessage()
         for record in caplog.records
@@ -341,3 +354,137 @@ def test_muat_simpanan_ringkasan_wilayah_benar(tmp_path: Path) -> None:
             {"idprov": "18", "nama": "Lampung", "n_kabupaten": 2, "n_desa": 4},
         ],
     }
+
+
+# --- Simpanan: pusat_wilayah (Blok A rencana fase-1-fondasi, app/) ----------
+
+
+@pytest.mark.unit
+def test_muat_simpanan_pusat_wilayah_benar(tmp_path: Path) -> None:
+    _bangun_data_salinan_sintetis(tmp_path)
+
+    simpanan = muat_simpanan(tmp_path)
+
+    assert simpanan.pusat_wilayah == {
+        "provinsi": [
+            {
+                "idprov": "18",
+                "nama": "Lampung",
+                "pusat": [105.0, -5.5],
+                "n_desa": 4,
+                "n_kabupaten": 2,
+            }
+        ],
+        "kabupaten": [
+            {
+                "idkab": "1801",
+                "nmkab": "KAB SATU",
+                "idprov": "18",
+                "pusat": [104.0, -5.0],
+                "n_desa": 2,
+            },
+            {
+                "idkab": "1802",
+                "nmkab": "KAB DUA",
+                "idprov": "18",
+                "pusat": [106.0, -6.0],
+                "n_desa": 2,
+            },
+        ],
+    }
+
+
+@pytest.mark.unit
+def test_muat_simpanan_pusat_wilayah_kab_tanpa_padanan_dilewati_dengan_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """`pusat_wilayah.json` bisa lebih tua dari `wilayah.json` (build selektif)."""
+    _bangun_data_salinan_sintetis(tmp_path)
+    _tulis_json(
+        tmp_path / "pusat_wilayah.json",
+        {
+            "kabupaten": [
+                {"idkab": "1801", "pusat": [104.0, -5.0]},
+                {"idkab": "9999", "pusat": [999.0, -9.0]},
+            ]
+        },
+    )
+
+    with caplog.at_level(logging.WARNING):
+        simpanan = muat_simpanan(tmp_path)
+
+    assert simpanan.pusat_wilayah is not None
+    idkab_terlihat = {k["idkab"] for k in simpanan.pusat_wilayah["kabupaten"]}
+    assert idkab_terlihat == {"1801"}
+    assert any("9999" in record.getMessage() for record in caplog.records)
+
+
+@pytest.mark.unit
+def test_muat_simpanan_pusat_wilayah_provinsi_tanpa_kabupaten_dilewati_dengan_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Provinsi baru di `wilayah.json` yang kabupatennya belum punya geo/pusat."""
+    _bangun_data_salinan_sintetis(tmp_path)
+    wilayah = json.loads((tmp_path / "wilayah.json").read_text(encoding="utf-8"))
+    wilayah["provinsi"].append({"idprov": "33", "nama": "Jawa Tengah"})
+    wilayah["kabupaten"].append({"idkab": "3301", "nmkab": "CILACAP", "idprov": "33"})
+    _tulis_json(tmp_path / "wilayah.json", wilayah)
+    # pusat_wilayah.json TIDAK diperbarui -- kab 3301 sengaja tanpa entri pusat
+
+    with caplog.at_level(logging.WARNING):
+        simpanan = muat_simpanan(tmp_path)
+
+    assert simpanan.pusat_wilayah is not None
+    idprov_terlihat = {p["idprov"] for p in simpanan.pusat_wilayah["provinsi"]}
+    assert idprov_terlihat == {"18"}
+    assert any("33" in record.getMessage() for record in caplog.records)
+
+
+@pytest.mark.unit
+def test_muat_simpanan_pusat_wilayah_kunci_kabupaten_absen_kembalikan_none(
+    tmp_path: Path,
+) -> None:
+    """`pusat_wilayah.json` ada tapi kehilangan kunci `kabupaten` = artefak
+    bukan yang diklaimnya -- kontrak folder ini menjawabnya 503
+    DATA_BELUM_SIAP lewat `wajib()`, bukan 200 dengan daftar kosong."""
+    _bangun_data_salinan_sintetis(tmp_path)
+    _tulis_json(tmp_path / "pusat_wilayah.json", {})
+
+    simpanan = muat_simpanan(tmp_path)
+
+    assert simpanan.pusat_wilayah is None
+
+
+@pytest.mark.unit
+def test_muat_simpanan_pusat_wilayah_daftar_kabupaten_kosong_kembalikan_none(
+    tmp_path: Path,
+) -> None:
+    """`pusat_wilayah.json` ada dengan kunci `kabupaten` tapi daftarnya
+    kosong -- kondisi sama seperti kunci absen (mis. `--lewati-geo` pada
+    `dir-keluaran` yang bersih), hasil rakitannya juga kosong."""
+    _bangun_data_salinan_sintetis(tmp_path)
+    _tulis_json(tmp_path / "pusat_wilayah.json", {"kabupaten": []})
+
+    simpanan = muat_simpanan(tmp_path)
+
+    assert simpanan.pusat_wilayah is None
+
+
+@pytest.mark.unit
+def test_muat_simpanan_pusat_wilayah_kab_wilayah_tanpa_pusat_dicatat_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Arah sebaliknya dari `..._kab_tanpa_padanan_...` di atas: kabupaten
+    ADA di `wilayah.json` tapi TIDAK punya entri di `pusat_wilayah.json` --
+    sebelumnya dibuang senyap, sekarang dicatat `logger.warning`."""
+    _bangun_data_salinan_sintetis(tmp_path)
+    wilayah = json.loads((tmp_path / "wilayah.json").read_text(encoding="utf-8"))
+    wilayah["kabupaten"].append({"idkab": "1803", "nmkab": "KAB TIGA", "idprov": "18"})
+    _tulis_json(tmp_path / "wilayah.json", wilayah)
+    # pusat_wilayah.json TIDAK diperbarui -- kab 1803 sengaja tanpa entri pusat
+
+    with caplog.at_level(logging.WARNING):
+        simpanan = muat_simpanan(tmp_path)
+
+    assert simpanan.pusat_wilayah is not None
+    assert any("1803" in record.getMessage() for record in caplog.records)

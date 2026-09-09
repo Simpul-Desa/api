@@ -20,7 +20,7 @@ from src.params import POLA_IDDESA
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(tags=["Berita Desa"])
 
 
 @router.get("/api/berita/{iddesa}", response_model=Amplop[list[ItemBerita]])

@@ -41,7 +41,7 @@ from src.exceptions import (
 from src.models import Amplop, Meta, sukses
 from src.pagination import BATAS_BAWAAN, ParamBatas, ParamHal
 
-router = APIRouter(prefix="/api/admin", tags=["admin"])
+router = APIRouter(prefix="/api/admin", tags=["Administrasi"])
 
 
 @router.post(
@@ -109,12 +109,15 @@ async def daftar_pengguna(
     hal: ParamHal = 1,
     batas: ParamBatas = BATAS_BAWAAN,
 ) -> Amplop[list[ItemPengguna]]:
-    """Daftar `profil` terpaginasi sisi server, opsional disaring `q` (ilike email).
+    """Daftar pengguna terdaftar beserta perannya, berpaginasi.
 
-    Paginasi dijalankan PostgREST lewat `limit`/`offset` — `potong()` sengaja
-    tidak dipakai karena PostgREST sudah memotong sisi server. `Meta` tetap
-    diisi supaya bentuk amplop identik dengan rute lain.
+    `q` menyaring berdasarkan email, tanpa peka kapital dan tanpa perlu cocok
+    penuh. `meta.total` adalah cacah seluruh baris yang lolos saringan, bukan
+    cacah baris pada halaman ini.
     """
+    # Paginasi dijalankan PostgREST lewat `limit`/`offset` — `potong()`
+    # sengaja tidak dipakai karena pemotongannya sudah terjadi sisi server.
+    # `Meta` tetap diisi supaya bentuk amplop identik dengan rute daftar lain.
     daftar, total = await service.daftar_pengguna(
         request.app.state.klien_supabase, q, hal, batas
     )
@@ -156,12 +159,13 @@ async def ubah_peran(
 
 @router.get("/status", response_model=Amplop[DataStatus])
 async def status_sistem(request: Request) -> Amplop[DataStatus]:
-    """Status sistem untuk halaman `/admin`: versi data, cacah, pekerjaan, konfigurasi.
+    """Status sistem: versi data, cacah isi, pekerjaan latar, dan konfigurasi.
 
-    Memanggil PostgREST tiga kali per pemuatan (cacah pengguna, cacah berita,
-    penyegaran terakhir) — jangan menambah panggilan keempat tanpa alasan.
-    `konfigurasi` hanya bendera boolean; nilai kunci tidak pernah dikirim.
+    `konfigurasi` hanya berisi bendera boolean "sudah terisi atau belum" per
+    layanan. Nilai kunci dan kredensial tidak pernah dikirim ke pemanggil.
     """
+    # Tiga panggilan PostgREST per pemuatan (cacah pengguna, cacah berita,
+    # penyegaran terakhir) — jangan menambah panggilan keempat tanpa alasan.
     klien = request.app.state.klien_supabase
     manifest = request.app.state.manifest
     pengaturan = ambil_pengaturan()

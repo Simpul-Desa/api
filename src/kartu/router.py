@@ -15,7 +15,7 @@ from src.kartu.service import baca_kartu_kab
 from src.models import Amplop, sukses
 from src.params import ParamIddesa
 
-router = APIRouter(prefix="/api/model", tags=["kartu"])
+router = APIRouter(prefix="/api/model", tags=["Kartu Ekonomi Desa"])
 
 
 @router.get("/kartu/{iddesa}", response_model=Amplop[dict[str, Any]])

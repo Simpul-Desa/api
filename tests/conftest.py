@@ -658,6 +658,22 @@ def _desa_kembar_1802() -> dict[str, Any]:
     }
 
 
+def _pusat_wilayah() -> dict[str, Any]:
+    """`pusat_wilayah.json` — pusat bbox sintetis kab 1801/1802 (Blok A fase-1-fondasi).
+
+    Pusat 1801 kombinasi dengan bbox `_geojson_1801()` (lon 104.0-104.1,
+    lat -5.0..-5.1 -> tengah [104.05, -5.05]); pusat 1802 nilai sintetis
+    bebas (tidak ada geojson kab 1802 di fixture ini — lihat
+    `tests/geo/test_router.py`, keduanya artefak independen di runtime).
+    """
+    return {
+        "kabupaten": [
+            {"idkab": IDKAB_SATU, "pusat": [104.05, -5.05]},
+            {"idkab": IDKAB_DUA, "pusat": [105.2, -4.6]},
+        ]
+    }
+
+
 def _geojson_1801() -> dict[str, Any]:
     """FeatureCollection kecil kab 1801 — properti fitur hanya `iddesa`+`nmdesa`."""
     return {
@@ -689,7 +705,8 @@ def _bangun_data_salinan_lengkap(dir_data: Path) -> None:
 
     1 provinsi ("18"), 2 kabupaten ("1801"/"1802"), 6 desa; seluruh jenis
     artefak yang dikonsumsi router fase 3 — lihat bagian "Bentuk artefak
-    data-salinan/" di rencana `fase-3-endpoint-baca.plan.md`.
+    data-salinan/" di rencana `fase-3-endpoint-baca.plan.md`. `pusat_wilayah.json`
+    (Blok A rencana `fase-1-fondasi.plan.md`, app/) ditambahkan belakangan.
     """
     _tulis_json(
         dir_data / "manifest.json",
@@ -736,6 +753,8 @@ def _bangun_data_salinan_lengkap(dir_data: Path) -> None:
     berkas_geo = dir_data / "geo" / f"{IDKAB_SATU}.geojson.gz"
     berkas_geo.parent.mkdir(parents=True, exist_ok=True)
     berkas_geo.write_bytes(gzip.compress(json.dumps(_geojson_1801()).encode("utf-8")))
+
+    _tulis_json(dir_data / "pusat_wilayah.json", _pusat_wilayah())
 
 
 def _bersihkan_cache_lru_pembaca() -> None:
