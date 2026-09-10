@@ -7,12 +7,12 @@ Asisten Desa (LLM), Berita Desa (panen RSS ke Supabase), dan Laporan Desa
 Repo ini adalah satu dari empat sistem SIMPUL DESA (DATATHON 2026 — Sistem
 Intelijen Potensi dan Kesiapan Ekonomi Desa):
 
-| Sistem | Repo | Peran |
+| Modul | Repo | Peran |
 |---|---|---|
-| API | repo ini | layanan backend yang menyajikan seluruh endpoint |
-| Portal | [Simpul-Desa/portal](https://github.com/Simpul-Desa/portal) | dasbor web pengguna, konsumen utama API ini |
-| Data | [Simpul-Desa/data](https://github.com/Simpul-Desa/data) | panen data dan pemodelan; produsen artefak yang disajikan API ini |
-| Dokumentasi | [Simpul-Desa/docs](https://github.com/Simpul-Desa/docs) | situs dokumentasi produk dan rujukan REST API |
+| Portal | [Simpul-Desa/portal](https://github.com/Simpul-Desa/portal) | dasbor web pengguna |
+| API | [Simpul-Desa/api](https://github.com/Simpul-Desa/api) | layanan backend yang menyajikan seluruh endpoint |
+| Data | [Simpul-Desa/data](https://github.com/Simpul-Desa/data) | panen data dan pemodelan |
+| Dokumentasi | [Simpul-Desa/docs](https://github.com/Simpul-Desa/docs) | situs dokumentasi project SIMPUL DESA |
 
 Berkas ini adalah peta operasional repo API: apa yang ada di mana, cara
 menjalankannya, dan kontrak apa yang dipegang.
