@@ -14,7 +14,7 @@ from src.berita.schemas import ItemBerita
 from src.berita.service import baris_berita
 from src.datastore import Simpanan, ambil_simpanan, wajib
 from src.exceptions import DESA_TIDAK_ADA, GalatAPI
-from src.models import Amplop, sukses
+from src.models import RESPONS_VALIDASI, Amplop, sukses
 from src.pagination import BATAS_BAWAAN, ParamBatas, ParamHal, potong
 from src.params import POLA_IDDESA
 
@@ -23,7 +23,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Berita Desa"])
 
 
-@router.get("/api/berita/{iddesa}", response_model=Amplop[list[ItemBerita]])
+@router.get(
+    "/api/berita/{iddesa}",
+    response_model=Amplop[list[ItemBerita]],
+    summary="Daftar Berita Desa",
+    response_description="Daftar berita satu desa, berpaginasi",
+    responses=RESPONS_VALIDASI,
+)
 async def berita_desa(
     request: Request,
     iddesa: Annotated[str, Path(pattern=POLA_IDDESA)],

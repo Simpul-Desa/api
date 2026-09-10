@@ -51,7 +51,7 @@ from src.chat.service import jawab
 from src.chat.tools import KonteksAlat
 from src.config import Pengaturan
 from src.datastore import Simpanan, ambil_simpanan
-from src.models import Amplop, sukses
+from src.models import RESPONS_VALIDASI, Amplop, sukses
 
 
 def kunci_pengguna(request: Request) -> str:
@@ -77,7 +77,13 @@ def buat_router(limiter: Limiter, pengaturan: Pengaturan) -> APIRouter:
     """Bangun `APIRouter` chat terikat ke `limiter` aplikasi (lihat docstring modul)."""
     router = APIRouter(tags=["Asisten Desa"])
 
-    @router.post("/api/chat", response_model=Amplop[DataJawaban])
+    @router.post(
+        "/api/chat",
+        response_model=Amplop[DataJawaban],
+        summary="Kirim Pesan",
+        response_description="Jawaban Asisten Desa beserta jejak fungsinya",
+        responses=RESPONS_VALIDASI,
+    )
     @limiter.limit(pengaturan.laju_chat, key_func=kunci_pengguna)
     async def chat(
         request: Request,
@@ -85,18 +91,17 @@ def buat_router(limiter: Limiter, pengaturan: Pengaturan) -> APIRouter:
         badan: PermintaanChat,
         simpanan: Simpanan = Depends(ambil_simpanan),  # noqa: B008
     ) -> Amplop[DataJawaban]:
-        """Jalankan satu giliran Asisten Desa: stateless, non-streaming.
+        """Jalankan satu giliran percakapan Asisten Desa.
 
-        Stateless: klien mengirim ulang SELURUH riwayat (`badan.messages`)
-        di setiap permintaan — server tidak menyimpan percakapan apa pun.
-        Non-streaming: satu jawaban utuh per permintaan, bukan potongan
-        token bertahap.
+        Setiap permintaan mengirim ulang seluruh riwayat percakapan lewat
+        `messages`; server tidak menyimpan riwayat apa pun. Jawaban selalu
+        dikirim utuh dalam satu respons, bukan bertahap per token.
 
-        Ambang laju rute ini per PENGGUNA, di atas ambang global per-IP yang
-        berlaku untuk seluruh endpoint.
+        Ambang laju rute ini berlaku per pengguna, di atas ambang global per
+        alamat IP yang berlaku untuk seluruh endpoint.
 
-        `meta` amplop selalu `null`. Jejak fungsi, model yang dipakai, cacah
-        putaran alat, dan peringatan ada DI DALAM `data`.
+        `meta` pada amplop selalu `null`. Jejak fungsi, model yang dipakai,
+        cacah putaran alat, dan peringatan ada di dalam `data`.
         """
         # `request` dan `response` tampak tak terpakai di badan fungsi tapi
         # KEDUANYA wajib ada di signature — alasannya di butir 2 dan 3

@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 
 from src.datastore import Simpanan, ambil_simpanan, wajib
-from src.models import Amplop, sukses
+from src.models import RESPONS_VALIDASI, Amplop, sukses
 from src.pagination import BATAS_BAWAAN, ParamBatas, ParamHal, potong
 from src.params import POLA_IDKAB, POLA_IDPROV
 from src.wilayah.schemas import (
@@ -20,13 +20,19 @@ from src.wilayah.service import wajib_kab_dikenal, wajib_prov_dikenal
 router = APIRouter(tags=["Wilayah"])
 
 
-@router.get("/api/wilayah/provinsi", response_model=Amplop[list[Provinsi]])
+@router.get(
+    "/api/wilayah/provinsi",
+    response_model=Amplop[list[Provinsi]],
+    summary="Daftar Provinsi",
+    response_description="Daftar provinsi berpaginasi",
+    responses=RESPONS_VALIDASI,
+)
 async def daftar_provinsi(
     hal: ParamHal = 1,
     batas: ParamBatas = BATAS_BAWAAN,
     simpanan: Simpanan = Depends(ambil_simpanan),  # noqa: B008
 ) -> Amplop[list[Provinsi]]:
-    """Daftar seluruh provinsi dari `wilayah.json`, berpaginasi."""
+    """Daftar seluruh provinsi yang dikenal API, berpaginasi."""
     wilayah = wajib(simpanan.wilayah, "wilayah")
 
     # `muat_json_atau_none` sengaja TIDAK memvalidasi kunci di dalam artefak
@@ -40,35 +46,60 @@ async def daftar_provinsi(
     return sukses([Provinsi(**baris) for baris in potongan], meta)
 
 
-@router.get("/api/wilayah/ringkasan", response_model=Amplop[RingkasanWilayah])
+@router.get(
+    "/api/wilayah/ringkasan",
+    response_model=Amplop[RingkasanWilayah],
+    summary="Ringkasan Wilayah",
+    response_description="Cacah provinsi, kabupaten, dan desa secara nasional",
+)
 async def ringkasan_wilayah(
     simpanan: Simpanan = Depends(ambil_simpanan),  # noqa: B008
 ) -> Amplop[RingkasanWilayah]:
-    """Kembalikan `simpanan.ringkasan_wilayah` apa adanya — bukan daftar, tanpa meta."""
+    """Ringkasan jumlah provinsi, kabupaten, dan desa secara nasional.
+
+    Hasilnya satu objek, bukan daftar berpaginasi, sehingga jawabannya
+    tidak menyertakan bagian meta.
+    """
     ringkasan = wajib(simpanan.ringkasan_wilayah, "ringkasan wilayah")
     return sukses(RingkasanWilayah(**ringkasan))
 
 
-@router.get("/api/wilayah/pusat", response_model=Amplop[PusatWilayah])
+@router.get(
+    "/api/wilayah/pusat",
+    response_model=Amplop[PusatWilayah],
+    summary="Pusat Wilayah",
+    response_description="Titik pusat tiap provinsi dan kabupaten",
+)
 async def pusat_wilayah(
     simpanan: Simpanan = Depends(ambil_simpanan),  # noqa: B008
 ) -> Amplop[PusatWilayah]:
-    """Kembalikan `simpanan.pusat_wilayah` apa adanya — bukan daftar, tanpa meta."""
+    """Titik pusat peta untuk setiap provinsi dan kabupaten.
+
+    Dipakai untuk memposisikan peta bertingkat dari tampilan nasional ke
+    provinsi lalu ke kabupaten. Hasilnya satu objek, bukan daftar
+    berpaginasi, sehingga jawabannya tidak menyertakan bagian meta.
+    """
     pusat = wajib(simpanan.pusat_wilayah, "pusat wilayah")
     return sukses(PusatWilayah(**pusat))
 
 
-@router.get("/api/wilayah/kabupaten", response_model=Amplop[list[Kabupaten]])
+@router.get(
+    "/api/wilayah/kabupaten",
+    response_model=Amplop[list[Kabupaten]],
+    summary="Daftar Kabupaten",
+    response_description="Daftar kabupaten berpaginasi",
+    responses=RESPONS_VALIDASI,
+)
 async def daftar_kabupaten(
     prov: Annotated[str | None, Query(pattern=POLA_IDPROV)] = None,
     hal: ParamHal = 1,
     batas: ParamBatas = BATAS_BAWAAN,
     simpanan: Simpanan = Depends(ambil_simpanan),  # noqa: B008
 ) -> Amplop[list[Kabupaten]]:
-    """Daftar kabupaten, filter opsional `prov` (kode provinsi 2 digit).
+    """Daftar kabupaten, dengan filter opsional `prov` (kode provinsi 2 digit).
 
-    `prov` yang bentuknya sah tapi tak dikenal di `simpanan.wilayah`
-    menghasilkan 404 `WILAYAH_TIDAK_ADA`.
+    `prov` yang formatnya sah tapi kodenya tidak dikenal menghasilkan
+    galat 404 dengan kode `WILAYAH_TIDAK_ADA`.
     """
     wilayah = wajib(simpanan.wilayah, "wilayah")
     daftar_kab = wajib(wilayah.get("kabupaten"), "daftar kabupaten wilayah")
@@ -81,17 +112,24 @@ async def daftar_kabupaten(
     return sukses([Kabupaten(**baris) for baris in potongan], meta)
 
 
-@router.get("/api/wilayah/desa", response_model=Amplop[list[DesaRingkas]])
+@router.get(
+    "/api/wilayah/desa",
+    response_model=Amplop[list[DesaRingkas]],
+    summary="Daftar Desa",
+    response_description="Daftar desa satu kabupaten, berpaginasi",
+    responses=RESPONS_VALIDASI,
+)
 async def daftar_desa(
     kab: Annotated[str, Query(pattern=POLA_IDKAB)],
     hal: ParamHal = 1,
     batas: ParamBatas = BATAS_BAWAAN,
     simpanan: Simpanan = Depends(ambil_simpanan),  # noqa: B008
 ) -> Amplop[list[DesaRingkas]]:
-    """Daftar desa dalam satu kabupaten — `kab` wajib (kode kabupaten 4 digit).
+    """Daftar desa dalam satu kabupaten. Parameter `kab` wajib diisi
+    (kode kabupaten 4 digit).
 
-    `kab` yang bentuknya sah tapi tak dikenal di `simpanan.wilayah`
-    menghasilkan 404 `WILAYAH_TIDAK_ADA`.
+    `kab` yang formatnya sah tapi kodenya tidak dikenal menghasilkan
+    galat 404 dengan kode `WILAYAH_TIDAK_ADA`.
     """
     wilayah = wajib(simpanan.wilayah, "wilayah")
     desa_per_kab = wajib(simpanan.desa_per_kab, "indeks kartu ekonomi")

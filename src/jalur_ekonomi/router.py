@@ -26,7 +26,7 @@ from src.jalur_ekonomi.service import (
     cari_grup,
     ratakan,
 )
-from src.models import Amplop, sukses
+from src.models import RESPONS_VALIDASI, Amplop, sukses
 from src.pagination import BATAS_BAWAAN, ParamBatas, ParamHal, potong
 
 router = APIRouter(prefix="/api/model/jalur-ekonomi", tags=["Jalur Ekonomi"])
@@ -64,7 +64,13 @@ def _grup_dari_baris(
     return grup
 
 
-@router.get("/{varian}", response_model=Amplop[list[dict[str, Any]]])
+@router.get(
+    "/{varian}",
+    response_model=Amplop[list[dict[str, Any]]],
+    summary="Daftar Jalur",
+    response_description="Daftar baris ringkas jalur ekonomi",
+    responses=RESPONS_VALIDASI,
+)
 async def daftar_jalur(
     varian: VarianJalurEkonomi,
     kab: ParamKab = None,
@@ -102,7 +108,13 @@ async def daftar_jalur(
     return sukses(potongan, meta)
 
 
-@router.get("/{varian}/{id_jalur}", response_model=Amplop[dict[str, Any]])
+@router.get(
+    "/{varian}/{id_jalur}",
+    response_model=Amplop[dict[str, Any]],
+    summary="Detail Jalur",
+    response_description="Satu grup jalur ekonomi utuh",
+    responses=RESPONS_VALIDASI,
+)
 async def detail_jalur(
     varian: VarianJalurEkonomi,
     id_jalur: str,

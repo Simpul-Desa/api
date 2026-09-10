@@ -14,7 +14,7 @@ from src.desa_kembar.service import (
     tetangga_terjoin,
 )
 from src.exceptions import DESA_TIDAK_ADA, GalatAPI
-from src.models import Amplop, sukses
+from src.models import RESPONS_VALIDASI, Amplop, sukses
 from src.params import POLA_IDDESA
 
 router = APIRouter(tags=["Desa Kembar"])
@@ -23,6 +23,9 @@ router = APIRouter(tags=["Desa Kembar"])
 @router.get(
     "/api/model/desa-kembar/{iddesa}",
     response_model=Amplop[DataDesaKembar],
+    summary="Tetangga Desa Kembar",
+    response_description="Tetangga terdekat beserta persentase kemiripan",
+    responses=RESPONS_VALIDASI,
 )
 async def desa_kembar(
     iddesa: Annotated[str, Path(pattern=POLA_IDDESA)],
@@ -31,11 +34,10 @@ async def desa_kembar(
 ) -> Amplop[DataDesaKembar]:
     """Kembalikan tetangga desa kembar terdekat untuk satu `iddesa`.
 
-    `iddesa` yang tak dikenal di `simpanan.indeks_per_desa` menghasilkan 404
-    `DESA_TIDAK_ADA`. Desa yang sah tapi tak punya vektor fitur pada model
-    kembar v3 — absen dari `desa-kembar/<idkab>.json`, atau berkas itu
-    sendiri hilang — tetap membalas 200 dengan `tetangga` kosong dan
-    `keterangan` penjelas (keputusan desain fase 3, butir 6).
+    `iddesa` yang tidak dikenal di indeks kartu ekonomi dijawab 404
+    `DESA_TIDAK_ADA`. Desa yang dikenal tetapi belum punya data kemiripan
+    tetangga tetap dijawab 200, dengan `tetangga` kosong dan `keterangan`
+    yang menjelaskan sebabnya.
     """
     indeks_per_desa = wajib(simpanan.indeks_per_desa, "indeks kartu ekonomi")
 

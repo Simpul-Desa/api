@@ -8,14 +8,14 @@ from src.models import ModelDasar
 
 
 class Provinsi(ModelDasar):
-    """Satu baris provinsi dari `wilayah.json`."""
+    """Satu baris provinsi: kode dan nama."""
 
     idprov: str
     nama: str
 
 
 class Kabupaten(ModelDasar):
-    """Satu baris kabupaten dari `wilayah.json`."""
+    """Satu baris kabupaten, berikut kode provinsi induknya."""
 
     idkab: str
     nmkab: str
@@ -39,8 +39,10 @@ class PerProvinsiRingkasan(ModelDasar):
     n_desa: int
 
 
+# Nilainya dihitung sekali saat startup dan disimpan di `simpanan`, bukan
+# dihitung ulang per permintaan.
 class RingkasanWilayah(ModelDasar):
-    """Payload `GET /api/wilayah/ringkasan` — dihitung sekali saat startup."""
+    """Payload `GET /api/wilayah/ringkasan`."""
 
     n_provinsi: int
     n_kabupaten: int
@@ -68,8 +70,12 @@ class PusatProvinsi(ModelDasar):
     n_kabupaten: int
 
 
+# Dipakai app/ untuk memposisikan lingkaran (bubble) pada peta bertingkat
+# saat pengguna melakukan drill-down dari provinsi ke kabupaten.
 class PusatWilayah(ModelDasar):
-    """Payload `GET /api/wilayah/pusat` untuk lingkaran berjenjang `app/`."""
+    """Payload `GET /api/wilayah/pusat`: titik pusat tiap provinsi dan
+    kabupaten untuk kebutuhan tampilan peta.
+    """
 
     provinsi: list[PusatProvinsi]
     kabupaten: list[PusatKabupaten]

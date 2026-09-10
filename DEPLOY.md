@@ -27,7 +27,7 @@ railway api 'query($id: String!) { service(id: $id) { repoTriggers { edges { nod
 Tiga alasannya:
 
 - Artefak data tidak bisa dibangun di sisi host. `python -m bangun` membaca
-  `../data/`, yang bukan bagian repo `api/` ([ADR-0009](../docs/adr/0009-dua-repo-git-akar-dan-api.md)),
+  `../data/`, yang bukan bagian repo `api/` ([ADR-0016](../docs/adr/0016-empat-repo-proyek-github-akar-lokal.md)),
   jadi folder itu tidak pernah ada di lingkungan build mana pun. Yang dipakai
   `data-salinan.tar.gz` (16 MB terkompresi dari 125 MB) yang ikut ter-commit —
   keputusannya di [ADR-0011](../docs/adr/0011-artefak-data-api-tarball-ter-commit.md).
@@ -82,7 +82,7 @@ rm -f data-salinan.tar.gz
 tar --no-xattrs --no-mac-metadata --numeric-owner --uid 0 --gid 0 \
     -czf data-salinan.tar.gz data-salinan
 # Linux (GNU tar): tar --numeric-owner --owner=0 --group=0 -czf data-salinan.tar.gz data-salinan
-tar tzf data-salinan.tar.gz | wc -l   # 379 entri
+tar tzf data-salinan.tar.gz | wc -l   # 380 entri
 railway up --detach -m "segarkan artefak data"
 ```
 

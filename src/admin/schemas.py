@@ -29,12 +29,15 @@ class TerimaSegarkan(ModelDasar):
     keadaan: str
 
 
+# `n_gagal` (FIX 1) memisahkan artikel yang melempar galat saat diolah dari
+# `n_dibuang` (penolakan editorial saring/verifikasi); lihat docstring
+# `HasilPanen` di `src/berita/schemas.py`.
 class HasilPenyegaranDesa(ModelDasar):
     """Ringkasan satu desa dalam badan `/api/admin/status`.
 
-    `n_gagal` (FIX 1) memisahkan artikel yang MELEMPAR saat diolah dari
-    `n_dibuang` (penolakan editorial saring/verifikasi) — lihat docstring
-    `HasilPanen` di `src/berita/schemas.py`.
+    `n_gagal` menghitung artikel yang gagal diproses karena galat, terpisah
+    dari `n_dibuang` yang menghitung artikel yang ditolak saat penyaringan
+    atau verifikasi editorial.
     """
 
     iddesa: str
@@ -87,17 +90,20 @@ class PenyegaranDesa(ModelDasar):
     dipanen_pada: datetime
 
 
+# `gemini` = kunci panen Berita Desa (`GEMINI_API_KEY`). `gemini_chat` =
+# kunci Asisten Desa (`GEMINI_API_KEY_CHAT`). Keduanya sengaja terpisah
+# supaya kuota Gemini tidak saling menghabiskan (lihat
+# `Pengaturan.gemini_api_key_chat`): satu penyegaran berita besar tidak
+# boleh menghabiskan kuota yang sedang dipakai pengguna chat, dan
+# sebaliknya. `gemini` tidak dinamai ulang menjadi `gemini_berita` di sini
+# karena itu memutus kontrak respons `/api/admin/status` sejak fase 7.
+# `gemini_chat` adalah penambahan aditif.
 class KonfigurasiSiap(ModelDasar):
     """Bendera boolean kesiapan konfigurasi untuk halaman `/admin`.
 
-    `gemini` = kunci panen Berita Desa (`GEMINI_API_KEY`). `gemini_chat` =
-    kunci Asisten Desa (`GEMINI_API_KEY_CHAT`). Keduanya sengaja terpisah
-    supaya kuota Gemini tidak saling menghabiskan (lihat
-    `Pengaturan.gemini_api_key_chat`) — satu penyegaran berita besar tidak
-    boleh menghabiskan kuota yang sedang dipakai pengguna chat, dan
-    sebaliknya. `gemini` TIDAK dinamai ulang menjadi `gemini_berita` di
-    sini: itu memutus kontrak respons `/api/admin/status` yang sudah
-    menjadi kontrak fase 7. `gemini_chat` adalah penambahan ADITIF.
+    `gemini` menandai kunci API untuk panen Berita Desa, `gemini_chat`
+    untuk Asisten Desa. Keduanya kunci terpisah, jadi satu bisa terisi
+    sementara yang lain belum.
     """
 
     supabase: bool

@@ -45,6 +45,15 @@ class Amplop(ModelDasar, Generic[T]):
     meta: Meta | None = None
 
 
+# Deskripsi bawaan FastAPI untuk respons 422 berbunyi "Validation Error", dan
+# situs dokumentasi menampilkannya apa adanya di halaman rujukan yang
+# selebihnya berbahasa Indonesia. Rute yang punya parameter atau badan
+# permintaan memakai konstanta ini lewat `responses=`.
+RESPONS_VALIDASI: dict[int | str, dict[str, Any]] = {
+    422: {"description": "Parameter atau badan permintaan tidak lolos validasi"}
+}
+
+
 def sukses(data: T, meta: Meta | None = None) -> Amplop[T]:
     return Amplop[T](sukses=True, data=data, galat=None, meta=meta)
 

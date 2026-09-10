@@ -38,7 +38,7 @@ from src.exceptions import (
     PENGGUNA_TIDAK_ADA,
     GalatAPI,
 )
-from src.models import Amplop, Meta, sukses
+from src.models import RESPONS_VALIDASI, Amplop, Meta, sukses
 from src.pagination import BATAS_BAWAAN, ParamBatas, ParamHal
 
 router = APIRouter(prefix="/api/admin", tags=["Administrasi"])
@@ -48,6 +48,9 @@ router = APIRouter(prefix="/api/admin", tags=["Administrasi"])
     "/berita/segarkan",
     response_model=Amplop[TerimaSegarkan],
     status_code=202,
+    summary="Segarkan Berita",
+    response_description="Tanda pekerjaan penyegaran sudah dimulai",
+    responses=RESPONS_VALIDASI,
 )
 async def segarkan_berita(
     request: Request,
@@ -56,11 +59,11 @@ async def segarkan_berita(
 ) -> Amplop[TerimaSegarkan]:
     """Mulai pekerjaan latar penyegaran RSS untuk daftar `iddesa` yang diminta.
 
-    Duplikat dibuang sambil mempertahankan urutan. `iddesa` PERTAMA yang
+    Duplikat dibuang sambil mempertahankan urutan. `iddesa` pertama yang
     tidak dikenal di indeks kartu ekonomi menghentikan permintaan sebelum
     pekerjaan apa pun dimulai (404). Hanya satu pekerjaan boleh berjalan
-    pada satu waktu — permintaan kedua saat pekerjaan lain berjalan ditolak
-    (409). Pekerjaan sungguhan berjalan di latar; balasan ini hanya
+    pada satu waktu. Permintaan kedua ditolak (409) selama pekerjaan lain
+    masih berjalan. Pekerjaan sungguhan berjalan di latar; balasan ini hanya
     menandakan pekerjaan sudah dimulai (202), bukan sudah selesai.
     """
     indeks_per_desa = wajib(simpanan.indeks_per_desa, "indeks kartu ekonomi")
@@ -87,19 +90,31 @@ async def segarkan_berita(
     )
 
 
-@router.delete("/berita/{id_berita}", response_model=Amplop[BeritaTerhapus])
+@router.delete(
+    "/berita/{id_berita}",
+    response_model=Amplop[BeritaTerhapus],
+    summary="Hapus Berita",
+    response_description="Identitas berita yang terhapus",
+    responses=RESPONS_VALIDASI,
+)
 async def hapus_berita(
     request: Request,
     id_berita: Annotated[int, Path(ge=1)],
 ) -> Amplop[BeritaTerhapus]:
-    """Hapus satu baris `berita_desa` lewat `id`; 404 bila `id` tidak ada."""
+    """Hapus satu berita lewat `id`; membalas 404 bila `id` tidak ada."""
     terhapus = await service.hapus_berita(request.app.state.klien_supabase, id_berita)
     if not terhapus:
         raise GalatAPI(BERITA_TIDAK_ADA, f"berita {id_berita} tidak ada", 404)
     return sukses(BeritaTerhapus(id=id_berita, terhapus=True))
 
 
-@router.get("/pengguna", response_model=Amplop[list[ItemPengguna]])
+@router.get(
+    "/pengguna",
+    response_model=Amplop[list[ItemPengguna]],
+    summary="Daftar Pengguna",
+    response_description="Daftar pengguna beserta perannya, berpaginasi",
+    responses=RESPONS_VALIDASI,
+)
 async def daftar_pengguna(
     request: Request,
     q: Annotated[
@@ -124,20 +139,28 @@ async def daftar_pengguna(
     return sukses(daftar, Meta(total=total, hal=hal, batas=batas))
 
 
-@router.post("/pengguna/{id_pengguna}/peran", response_model=Amplop[PeranDiubah])
+# Penjaga peran-sendiri berjalan sebelum panggilan jaringan apa pun. Konversi
+# `identitas.id` ke UUID dibungkus supaya bentuk klaim `sub` yang tidak
+# kanonik tidak pernah menjadi galat server; identitas selalu UUID kanonik
+# dari `ambil_peran_profil`, tapi penjagaan ini tidak bergantung pada itu.
+@router.post(
+    "/pengguna/{id_pengguna}/peran",
+    response_model=Amplop[PeranDiubah],
+    summary="Ubah Peran",
+    response_description="Peran baru pengguna itu",
+    responses=RESPONS_VALIDASI,
+)
 async def ubah_peran(
     request: Request,
     id_pengguna: uuid.UUID,
     body: PermintaanUbahPeran,
     identitas: Identitas = Depends(wajib_admin),  # noqa: B008
 ) -> Amplop[PeranDiubah]:
-    """Ubah peran satu pengguna; menolak perubahan peran pemanggil sendiri.
+    """Ubah peran satu pengguna.
 
-    Penjaga peran-sendiri berjalan SEBELUM panggilan jaringan apa pun.
-    Konversi `identitas.id` ke UUID dibungkus supaya bentuk klaim `sub` yang
-    tidak kanonik tidak pernah menjadi galat server — identitas selalu UUID
-    kanonik dari `ambil_peran_profil`, tapi penjagaan ini tidak bergantung
-    pada itu.
+    Mengubah peran diri sendiri lewat endpoint ini ditolak 403
+    `AKSI_DITOLAK`. `id_pengguna` yang tidak terdaftar dijawab 404
+    `PENGGUNA_TIDAK_ADA`.
     """
     try:
         id_pemanggil = str(uuid.UUID(identitas.id))
@@ -157,7 +180,12 @@ async def ubah_peran(
     return sukses(PeranDiubah(id=str(id_pengguna), peran=body.peran))
 
 
-@router.get("/status", response_model=Amplop[DataStatus])
+@router.get(
+    "/status",
+    response_model=Amplop[DataStatus],
+    summary="Status Sistem",
+    response_description="Ringkasan status sistem",
+)
 async def status_sistem(request: Request) -> Amplop[DataStatus]:
     """Status sistem: versi data, cacah isi, pekerjaan latar, dan konfigurasi.
 

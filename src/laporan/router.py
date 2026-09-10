@@ -15,6 +15,7 @@ from src.exceptions import DESA_TIDAK_ADA, GalatAPI
 from src.kartu.service import baca_kartu_kab
 from src.laporan.pdf import bangun_pdf
 from src.laporan.service import rakit_ringkasan
+from src.models import RESPONS_VALIDASI
 from src.params import ParamIddesa
 
 router = APIRouter(tags=["Laporan Desa"])
@@ -40,18 +41,20 @@ def _nama_provinsi(simpanan: Simpanan, idkab: str) -> str | None:
 @router.get(
     "/api/laporan/{iddesa}",
     response_class=Response,
-    responses={200: {"content": {"application/pdf": {}}}},
+    summary="Laporan PDF Desa",
+    response_description="Berkas PDF laporan desa",
+    responses={**RESPONS_VALIDASI, 200: {"content": {"application/pdf": {}}}},
 )
 async def laporan_desa(
     request: Request,
     iddesa: ParamIddesa,
     simpanan: Simpanan = Depends(ambil_simpanan),  # noqa: B008
 ) -> Response:
-    """PDF satu desa: Peta Peran + Kartu Ekonomi (PRD bagian 5).
+    """PDF satu desa, gabungan Peta Peran dan Kartu Ekonomi.
 
-    Dibuat saat diminta, tanpa cache. `iddesa` tak dikenal di indeks
-    kartu, tak ada di berkas kartu kabupatennya, atau tak punya baris
-    Peta Peran sama-sama 404 `DESA_TIDAK_ADA`.
+    Dibuat saat diminta, tanpa cache. `iddesa` yang tidak dikenal, tidak
+    mempunyai data Kartu Ekonomi, atau tidak mempunyai baris Peta Peran,
+    sama-sama dijawab 404 `DESA_TIDAK_ADA`.
     """
     indeks_per_desa = wajib(simpanan.indeks_per_desa, "indeks kartu ekonomi")
     baris = indeks_per_desa.get(iddesa)

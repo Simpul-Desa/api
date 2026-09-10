@@ -6,9 +6,9 @@ dari hash manifest data-salinan/ + `Cache-Control` publik ber-`max-age`;
 
 Prefiks data BERTOKEN (`PREFIKS_TANPA_CACHE` — empat router tamu fase 4,
 berita fase 6, `/api/admin` fase 7, `/api/laporan` fase 8 — rute PDF
-bertoken, bukan JSON, dan `/api/chat` fase 5 — PRD §5: berita dan chat
-selalu `no-store`) sengaja TIDAK ikut skema itu: temuan tinjauan keamanan
-fase 4 membuktikan
+bertoken, bukan JSON, `/api/chat` fase 5, dan `/api/profil` fase 2 auth —
+PRD §5: berita dan chat selalu `no-store`) sengaja TIDAK ikut skema itu:
+temuan tinjauan keamanan fase 4 membuktikan
 (1) `Cache-Control: public` membuat shared cache (CDN/proxy) menyimpan
 body berotorisasi lalu menyajikannya ke klien anonim, dan (2) jawaban 304
 dari middleware ini keluar SEBELUM dependensi peran berjalan, sehingga
@@ -45,6 +45,7 @@ PREFIKS_TANPA_CACHE: Final[tuple[str, ...]] = (
     "/api/model/jalur-ekonomi",
     "/api/model/desa-kembar",
     "/api/berita",
+    "/api/profil",
     "/api/admin",
     "/api/laporan",
     "/api/chat",

@@ -4,7 +4,7 @@ from src.models import ModelDasar
 
 
 class BarisIndeksKartu(ModelDasar):
-    """Baris indeks kartu ekonomi utuh — payload hasil pencarian desa."""
+    """Baris indeks kartu ekonomi utuh: payload hasil pencarian desa."""
 
     iddesa: str
     nmdesa: str

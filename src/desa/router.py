@@ -7,14 +7,20 @@ from fastapi import APIRouter, Depends, Query
 from src.datastore import Simpanan, ambil_simpanan, wajib
 from src.desa.schemas import BarisIndeksKartu
 from src.desa.service import kunci_urutan
-from src.models import Amplop, sukses
+from src.models import RESPONS_VALIDASI, Amplop, sukses
 from src.pagination import BATAS_BAWAAN, ParamBatas, ParamHal, potong
 from src.params import POLA_IDKAB
 
 router = APIRouter(tags=["Pencarian Desa"])
 
 
-@router.get("/api/desa/cari", response_model=Amplop[list[BarisIndeksKartu]])
+@router.get(
+    "/api/desa/cari",
+    response_model=Amplop[list[BarisIndeksKartu]],
+    summary="Cari Desa",
+    response_description="Daftar desa yang cocok, berpaginasi",
+    responses=RESPONS_VALIDASI,
+)
 async def cari_desa(
     q: Annotated[str, Query(min_length=2)],
     kab: Annotated[str | None, Query(pattern=POLA_IDKAB)] = None,

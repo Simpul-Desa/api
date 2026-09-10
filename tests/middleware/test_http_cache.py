@@ -63,6 +63,10 @@ def _dummy_app(manifest: dict[str, Any] | None) -> FastAPI:
     def _dummy_laporan_get() -> dict[str, str]:
         return {"halo": "dunia"}
 
+    @app.get("/api/profil/uji")
+    def _dummy_profil_get() -> dict[str, str]:
+        return {"halo": "dunia"}
+
     @app.get("/lainnya")
     def _lainnya() -> dict[str, str]:
         return {"halo": "dunia"}
@@ -362,6 +366,20 @@ async def test_prefiks_laporan_no_store_tanpa_etag(
     klien = await buat_klien(_dummy_app({"hash": "uji123"}))
 
     respons = await klien.get("/api/laporan/uji")
+
+    assert respons.status_code == 200
+    assert respons.headers["cache-control"] == "private, no-store"
+    assert "etag" not in respons.headers
+
+
+@pytest.mark.integration
+async def test_prefiks_profil_no_store_tanpa_etag(
+    pengaturan_bawaan: None, buat_klien: PembuatKlien
+) -> None:
+    """`/api/profil` (akun bertoken fase 2 auth): `private, no-store`, tanpa ETag."""
+    klien = await buat_klien(_dummy_app({"hash": "uji123"}))
+
+    respons = await klien.get("/api/profil/uji")
 
     assert respons.status_code == 200
     assert respons.headers["cache-control"] == "private, no-store"

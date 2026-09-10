@@ -1,10 +1,12 @@
 """Skrip build: sederhanakan geometri batas desa (GeoJSON) dan kompres gzip.
 
 Menyederhanakan geometri MultiPolygon batas desa dengan shapely.simplify
-(preserve_topology=True), memangkas properti ke {"iddesa", "nmdesa"} saja,
-lalu menulis FeatureCollection hasil sebagai .geojson.gz (gzip level 9).
-Sengaja hanya pakai `json` + `shapely` (tanpa geopandas) untuk menghindari
-dependensi driver I/O geopandas.
+(preserve_topology=True), memangkas properti ke {"iddesa", "nmdesa"} plus
+`pusat` (titik tengah bbox geometri SETELAH disederhanakan, dibulatkan 5
+desimal — lihat `bangun.pusat.pusat_bbox_fitur`), lalu menulis
+FeatureCollection hasil sebagai .geojson.gz (gzip level 9). Sengaja hanya
+pakai `json` + `shapely` (tanpa geopandas) untuk menghindari dependensi
+driver I/O geopandas.
 """
 
 import gzip
@@ -16,6 +18,7 @@ from pathlib import Path
 from shapely.geometry import mapping, shape
 
 from bangun.konstanta import AKHIRAN_GEO
+from bangun.pusat import pusat_bbox_fitur
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +29,17 @@ def sederhanakan_berkas(sumber: Path, tujuan: Path, toleransi: float) -> dict[st
     """Sederhanakan satu berkas GeoJSON batas desa, tulis sebagai .geojson.gz.
 
     Tiap fitur disederhanakan dengan shapely.simplify (preserve_topology=True).
+    Fitur tanpa geometri (`geometry: null`, GeoJSON sah) menggagalkan build
+    dengan `ValueError` bernama `iddesa` dan berkas sumbernya — desa tanpa
+    batas adalah masalah data di `data/` yang harus dibetulkan di sana, bukan
+    baris yang boleh hilang diam-diam dari artefak yang disajikan `api/`.
     Fitur yang geometrinya jadi kosong setelah disederhanakan dibuang dan
-    dihitung; total yang dibuang dicatat lewat log peringatan (hanya bila
-    ada yang dibuang). Properti fitur yang disimpan hanya "iddesa" dan
-    "nmdesa". Hasil ditulis sebagai FeatureCollection JSON yang dikompres
-    gzip level 9 ke `tujuan` (direktori induk dibuat bila belum ada).
+    dihitung; total yang dibuang dicatat lewat log peringatan (hanya bila ada
+    yang dibuang). Properti fitur yang disimpan adalah "iddesa", "nmdesa",
+    dan `pusat` (titik tengah bbox geometri SETELAH disederhanakan,
+    dibulatkan 5 desimal — lihat `bangun.pusat.pusat_bbox_fitur`). Hasil
+    ditulis sebagai FeatureCollection JSON yang dikompres gzip level 9 ke
+    `tujuan` (direktori induk dibuat bila belum ada).
     """
     bytes_masuk = sumber.stat().st_size
     data = json.loads(sumber.read_text(encoding="utf-8"))
@@ -38,7 +47,21 @@ def sederhanakan_berkas(sumber: Path, tujuan: Path, toleransi: float) -> dict[st
     fitur_keluaran: list[dict[str, object]] = []
     n_dibuang = 0
     for fitur in data["features"]:
-        geom = shape(fitur["geometry"]).simplify(toleransi, preserve_topology=True)
+        geometri = fitur.get("geometry")
+        if geometri is None:
+            # Desa tanpa geometri adalah masalah data di data/, bukan sesuatu
+            # yang boleh diserap api/ dengan membuang barisnya diam-diam dari
+            # artefak yang disajikan (itu memindahkan sebuah desa dari peta
+            # tanpa jejak). Alternatif "lewati + hitung terpisah" sudah
+            # dipertimbangkan dan ditolak: build yang gagal keras — seperti
+            # perilaku shape(None) sebelum properti `pusat` ada — lebih baik
+            # daripada kehilangan data senyap di artefak yang dilayani.
+            iddesa = fitur.get("properties", {}).get("iddesa")
+            raise ValueError(
+                f"{sumber}: fitur iddesa={iddesa!r} tidak bergeometri (geometry: null)"
+            )
+
+        geom = shape(geometri).simplify(toleransi, preserve_topology=True)
         if geom.is_empty:
             n_dibuang += 1
             continue
@@ -47,11 +70,26 @@ def sederhanakan_berkas(sumber: Path, tujuan: Path, toleransi: float) -> dict[st
         properti_baru = {
             kunci: properti_asli.get(kunci) for kunci in PROPERTI_DIPERTAHANKAN
         }
+        geometri_keluar = mapping(geom)
+        pusat = pusat_bbox_fitur({"geometry": geometri_keluar})
+        if pusat is None:
+            # Tercapai bila geom tidak punya kunci `coordinates` di
+            # mapping()-nya walau lolos cek is_empty di atas — mis.
+            # GeometryCollection tak-kosong, yang di-mapping jadi
+            # {"type", "geometries"} tanpa "coordinates" sama sekali.
+            logger.warning(
+                "%s: iddesa=%s pusat tidak terhitung (geometri tanpa coordinates)",
+                sumber,
+                properti_baru.get("iddesa"),
+            )
+        properti_baru["pusat"] = (
+            [round(pusat[0], 5), round(pusat[1], 5)] if pusat is not None else None
+        )
         fitur_keluaran.append(
             {
                 "type": "Feature",
                 "properties": properti_baru,
-                "geometry": mapping(geom),
+                "geometry": geometri_keluar,
             }
         )
 

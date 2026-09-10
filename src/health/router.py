@@ -25,13 +25,18 @@ router = APIRouter(tags=["Kesehatan"])
 # Manifest yang belum termuat (`request.app.state.manifest is None`) tetap 200
 # dengan kedua field bernilai None — sengaja, bukan 503: rute ini dipakai
 # pemantau untuk membedakan "proses hidup" dari "data siap".
-@router.get("/health", response_model=Amplop[DataKesehatan])
+@router.get(
+    "/health",
+    response_model=Amplop[DataKesehatan],
+    summary="Kesehatan",
+    response_description="Status hidup API beserta versi dan tanggal data",
+)
 @router.head("/health", response_model=Amplop[DataKesehatan], include_in_schema=False)
 async def kesehatan(request: Request) -> Amplop[DataKesehatan]:
     """Kembalikan status hidup API beserta versi dan tanggal data panen.
 
     Selalu membalas 200, termasuk ketika salinan data belum termuat di
-    server — dalam kondisi itu `versi_data` dan `tanggal_data` bernilai
+    server. Dalam kondisi itu `versi_data` dan `tanggal_data` bernilai
     `null`, jadi keduanya sekaligus penanda kesiapan data.
 
     `HEAD /health` juga dilayani, dengan badan respons dipotong.

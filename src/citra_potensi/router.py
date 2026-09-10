@@ -21,13 +21,19 @@ from src.citra_potensi.schemas import (
 from src.citra_potensi.service import baca_sel_citra
 from src.datastore import Simpanan, ambil_simpanan, wajib
 from src.exceptions import TIDAK_DITEMUKAN, GalatAPI
-from src.models import Amplop, sukses
+from src.models import RESPONS_VALIDASI, Amplop, sukses
 from src.pagination import BATAS_BAWAAN, ParamBatas, ParamHal, potong
 
 router = APIRouter(prefix="/api/model/citra-potensi", tags=["Citra Potensi Desa"])
 
 
-@router.get("", response_model=Amplop[list[dict[str, Any]]])
+@router.get(
+    "",
+    response_model=Amplop[list[dict[str, Any]]],
+    summary="Daftar Sel Citra",
+    response_description="Daftar metadata sel citra",
+    responses=RESPONS_VALIDASI,
+)
 async def daftar_sel(
     prov: ParamProv = None,
     target: ParamTarget = None,
@@ -50,13 +56,19 @@ async def daftar_sel(
     return sukses(potongan, meta)
 
 
-@router.get("/sel", response_model=Amplop[dict[str, Any]])
+@router.get(
+    "/sel",
+    response_model=Amplop[dict[str, Any]],
+    summary="Detail Sel Citra",
+    response_description="Metadata dan skor satu sel citra",
+    responses=RESPONS_VALIDASI,
+)
 async def detail_sel(
     prov: ParamProvWajib,
     target: ParamTargetWajib,
     simpanan: Simpanan = Depends(ambil_simpanan),  # noqa: B008
 ) -> Amplop[dict[str, Any]]:
-    """Detail satu sel: metadata indeks + `format_skor` + `skor` berkas produksi."""
+    """Detail satu sel: metadata indeks digabung dengan `format_skor` dan `skor`."""
     citra_indeks = wajib(simpanan.citra_indeks, "indeks citra potensi")
 
     sel = next(

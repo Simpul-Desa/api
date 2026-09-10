@@ -7,26 +7,34 @@ from fastapi.responses import FileResponse
 
 from src.datastore import Simpanan, ambil_simpanan, wajib
 from src.exceptions import TIDAK_DITEMUKAN, GalatAPI
+from src.models import RESPONS_VALIDASI
 from src.params import POLA_IDKAB
 from src.wilayah.service import wajib_kab_dikenal
 
 router = APIRouter(tags=["Batas Desa"])
 
 
-@router.get("/api/geo/desa/{idkab}")
+# Header `Content-Encoding: gzip` diset manual karena berkas sumber sudah
+# terkompresi gzip. `FileResponse` dipanggil TANPA `filename=` supaya
+# FastAPI tidak menambahkan `Content-Disposition: attachment`, yang
+# memaksa unduh berkas alih-alih menampilkannya inline di klien.
+@router.get(
+    "/api/geo/desa/{idkab}",
+    summary="Batas Desa Kabupaten",
+    response_description="Berkas GeoJSON batas desa, terkompresi gzip",
+    responses=RESPONS_VALIDASI,
+)
 async def geo_desa(
     idkab: Annotated[str, Path(pattern=POLA_IDKAB)],
     simpanan: Simpanan = Depends(ambil_simpanan),  # noqa: B008
 ) -> FileResponse:
-    """Sajikan GeoJSON batas desa pra-gzip satu kabupaten sebagai berkas.
+    """Sajikan berkas GeoJSON batas desa satu kabupaten, sudah terkompresi gzip.
 
-    `idkab` yang tak dikenal di `simpanan.wilayah` menghasilkan 404 (amplop
-    JSON) `WILAYAH_TIDAK_ADA`. `idkab` dikenal tapi berkas
-    `geo/<idkab>.geojson.gz` belum ada menghasilkan 404 (amplop JSON)
-    `TIDAK_DITEMUKAN`. Bila berkas ada, dikembalikan lewat `FileResponse`
-    dengan header `Content-Encoding: gzip` diset manual (berkas sumber sudah
-    ter-kompresi) — TANPA `filename=`, supaya FastAPI tidak menambahkan
-    header `Content-Disposition: attachment` yang memaksa unduh berkas.
+    `idkab` yang tidak dikenal menghasilkan galat 404 (amplop JSON) dengan
+    kode `WILAYAH_TIDAK_ADA`. `idkab` dikenal tetapi berkas batas desa
+    kabupaten itu belum tersedia menghasilkan galat 404 (amplop JSON)
+    dengan kode `TIDAK_DITEMUKAN`. Respons yang berhasil membawa header
+    `Content-Encoding: gzip` dan tidak memaksa unduh berkas.
     """
     wilayah = wajib(simpanan.wilayah, "wilayah")
 

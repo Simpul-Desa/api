@@ -43,6 +43,7 @@ from src.middleware.rate_limit import (
     tangani_batas_laju,
 )
 from src.peta_peran.router import router as router_peta_peran
+from src.profil.router import router as router_profil
 from src.wilayah.router import router as router_wilayah
 
 # Lama menunggu `tugas_penyegaran` benar-benar berhenti setelah dibatalkan.
@@ -97,7 +98,7 @@ TAG_OPENAPI: list[dict[str, Any]] = [
         "name": "Jalur Ekonomi",
         "description": (
             "Menyambung sekumpulan desa ke satu aset bersama di lokasi optimal, "
-            "agar skalanya cukup besar untuk hidup. Empat varian — Komoditas, "
+            "agar skalanya cukup besar untuk hidup. Empat varian: Komoditas, "
             "Gudang Kopdes, Cold Storage, dan Wisata. Butuh peran tamu ke atas."
         ),
     },
@@ -141,8 +142,8 @@ TAG_OPENAPI: list[dict[str, Any]] = [
     {
         "name": "Wilayah",
         "description": (
-            "Daftar dan ringkasan wilayah administratif — provinsi, kabupaten, "
-            "desa — beserta titik pusatnya. Terbuka tanpa token."
+            "Daftar dan ringkasan wilayah administratif (provinsi, kabupaten, "
+            "desa) beserta titik pusatnya. Terbuka tanpa token."
         ),
     },
     {
@@ -165,6 +166,10 @@ TAG_OPENAPI: list[dict[str, Any]] = [
             "Status hidup API beserta versi dan tanggal data panen. Terbuka "
             "tanpa token."
         ),
+    },
+    {
+        "name": "Akun",
+        "description": ("Akun dan peran pengguna dasbor. Butuh peran tamu ke atas."),
     },
     {
         "name": "Administrasi",
@@ -222,6 +227,14 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="SIMPUL DESA API",
+        description=(
+            "Seluruh keluaran model SIMPUL DESA dibaca lewat API ini: zona "
+            "penanganan tiap desa, kartu ekonomi, jalur ekonomi, desa kembar, "
+            "citra potensi, berita, laporan, dan data wilayah pendukungnya. "
+            "Setiap respons JSON dibungkus amplop yang sama, sukses maupun "
+            "gagal. Endpoint data anonim terbuka tanpa token; selebihnya "
+            "memakai bearer token dan dibatasi peran akun."
+        ),
         lifespan=_lifespan,
         openapi_tags=TAG_OPENAPI,
         servers=SERVER_OPENAPI,
@@ -268,6 +281,10 @@ def create_app() -> FastAPI:
     app.include_router(router_jalur_ekonomi, dependencies=dependensi_tamu)
     app.include_router(router_desa_kembar, dependencies=dependensi_tamu)
     app.include_router(router_berita, dependencies=dependensi_tamu)
+    # Penegakan peran sudah di TANDA TANGAN handler (`Depends(wajib_tamu)`
+    # di `src/profil/router.py`), karena nilai `Identitas` dipakai langsung —
+    # menambah `dependencies=` di sini akan menjalankan verifikasi dua kali.
+    app.include_router(router_profil)
     # Chat memakai pabrik (`buat_router_chat`), bukan router modul-level
     # seperti domain lain — dekorator ambang per pengguna butuh
     # `app.state.limiter`, yang baru ada setelah baris limiter di atas.

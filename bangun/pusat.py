@@ -56,7 +56,7 @@ def _telusuri_titik(koordinat: Any) -> Iterator[tuple[float, float]]:
         yield from _telusuri_titik(sub)
 
 
-def _pusat_bbox_fitur(fitur: dict[str, Any]) -> tuple[float, float] | None:
+def pusat_bbox_fitur(fitur: dict[str, Any]) -> tuple[float, float] | None:
     """Titik tengah bbox geometri SATU fitur (satu desa).
 
     Bbox mencakup seluruh koordinat fitur itu (Polygon maupun MultiPolygon —
@@ -64,6 +64,9 @@ def _pusat_bbox_fitur(fitur: dict[str, Any]) -> tuple[float, float] | None:
     None bila fitur tidak bergeometri (`geometry: null`, GeoJSON sah) atau
     geometrinya tidak berisi satu titik koordinat pun (mis. dibuang
     `sederhanakan_berkas` karena jadi kosong setelah simplifikasi).
+
+    Publik: `bangun/geo.py` juga memakai fungsi ini untuk menulis properti
+    `pusat` per fitur pada tiap `.geojson.gz` yang dibangunnya.
     """
     geometri = fitur.get("geometry")
     if not geometri:
@@ -94,7 +97,7 @@ def hitung_pusat_kabupaten(koleksi: dict[str, Any]) -> list[float] | None:
     """
     titik: list[tuple[float, float]] = []
     for fitur in koleksi.get("features", []):
-        pusat_fitur = _pusat_bbox_fitur(fitur)
+        pusat_fitur = pusat_bbox_fitur(fitur)
         if pusat_fitur is not None:
             titik.append(pusat_fitur)
 

@@ -22,11 +22,12 @@ from src.models import ModelDasar
 _pengaturan = ambil_pengaturan()
 
 
+# "system" ditolak karena `Content.role` Gemini hanya mengenal user/model,
+# dan system prompt milik server, bukan klien.
 class Pesan(ModelDasar):
     """Satu giliran percakapan yang dikirim klien.
 
-    "system" sengaja TIDAK diizinkan: `Content.role` Gemini hanya mengenal
-    user/model, dan system prompt milik server, bukan klien.
+    Peran "system" tidak diizinkan; hanya "user" dan "model" yang diterima.
     """
 
     role: Literal["user", "model"]
@@ -43,7 +44,7 @@ class PermintaanChat(ModelDasar):
 
 
 class JejakFungsi(ModelDasar):
-    """Satu pemanggilan fungsi yang benar-benar terjadi - jejak asal angka."""
+    """Satu pemanggilan fungsi yang benar-benar terjadi: jejak asal angka."""
 
     fungsi: str
     argumen: dict[str, Any]

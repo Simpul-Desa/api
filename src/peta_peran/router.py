@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends
 
 from src.datastore import Simpanan, ambil_simpanan, wajib
 from src.exceptions import DESA_TIDAK_ADA, WILAYAH_TIDAK_ADA, GalatAPI
-from src.models import Amplop, sukses
+from src.models import RESPONS_VALIDASI, Amplop, sukses
 from src.pagination import BATAS_BAWAAN, ParamBatas, ParamHal, potong
 from src.params import ParamIddesa
 from src.peta_peran.schemas import ParamKab, ParamProv, ZonaPetaPeran
@@ -25,7 +25,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/model", tags=["Peta Peran"])
 
 
-@router.get("/peta-peran", response_model=Amplop[list[dict[str, Any]]])
+@router.get(
+    "/peta-peran",
+    response_model=Amplop[list[dict[str, Any]]],
+    summary="Daftar Peta Peran",
+    response_description="Daftar baris ringkas Peta Peran, berpaginasi",
+    responses=RESPONS_VALIDASI,
+)
 async def daftar_peta_peran(
     prov: ParamProv = None,
     kab: ParamKab = None,
@@ -36,9 +42,9 @@ async def daftar_peta_peran(
 ) -> Amplop[list[dict[str, Any]]]:
     """Daftar baris ringkas Peta Peran Desa dengan filter `prov`/`kab`/`zona`.
 
-    `zona`, bila diisi, harus persis salah satu dari lima nama GLOSSARY — nilai
-    lain otomatis 422 lewat validasi `Literal`. `prov`/`kab`, bila diisi, harus
-    dikenal di `wilayah.json` (404 `WILAYAH_TIDAK_ADA` bila tidak).
+    `zona` di luar nilai yang sah dijawab 422. `prov` dan `kab`, bila diisi,
+    harus kode wilayah yang dikenal; kode yang tidak dikenal dijawab 404
+    `WILAYAH_TIDAK_ADA`.
     """
     if prov is not None or kab is not None:
         wilayah = wajib(simpanan.wilayah, "wilayah")
@@ -75,7 +81,13 @@ async def daftar_peta_peran(
     return sukses(potongan, meta)
 
 
-@router.get("/peta-peran/ringkasan", response_model=Amplop[Any])
+@router.get(
+    "/peta-peran/ringkasan",
+    response_model=Amplop[Any],
+    summary="Ringkasan Peta Peran",
+    response_description="Ringkasan Peta Peran per kabupaten",
+    responses=RESPONS_VALIDASI,
+)
 async def ringkasan_peta_peran(
     kab: ParamKab = None,
     hal: ParamHal = 1,
@@ -84,10 +96,9 @@ async def ringkasan_peta_peran(
 ) -> Amplop[Any]:
     """Ringkasan Peta Peran per kabupaten: satu objek (`kab=`) atau daftar semua.
 
-    Tanpa `kab`, daftar seluruh kabupaten tetap dipaginasi (keputusan desain
-    #9 — daftar kecil tetap mengisi `meta.total` dengan paginasi yang sama).
-    Dengan `kab`, satu objek dikembalikan tanpa `meta`. `kab` tak dikenal di
-    `ringkasan_kab.json` → 404 `WILAYAH_TIDAK_ADA`.
+    Tanpa `kab`, daftar seluruh kabupaten tetap dipaginasi dan mengisi
+    `meta.total`. Dengan `kab`, satu objek dikembalikan tanpa `meta`. `kab`
+    yang tidak dikenal dijawab 404 `WILAYAH_TIDAK_ADA`.
     """
     ringkasan_kab = wajib(simpanan.ringkasan_kab, "ringkasan kab peta peran")
 
@@ -102,14 +113,22 @@ async def ringkasan_peta_peran(
     return sukses(potongan, meta)
 
 
-@router.get("/peta-peran/{iddesa}", response_model=Amplop[dict[str, Any]])
+@router.get(
+    "/peta-peran/{iddesa}",
+    response_model=Amplop[dict[str, Any]],
+    summary="Detail Peta Peran",
+    response_description="Baris penuh Peta Peran satu desa",
+    responses=RESPONS_VALIDASI,
+)
 async def detail_peta_peran(
     iddesa: ParamIddesa,
     simpanan: Simpanan = Depends(ambil_simpanan),  # noqa: B008
 ) -> Amplop[dict[str, Any]]:
-    """Baris penuh Peta Peran Desa (42 kolom) apa adanya — kolom mutu data
-    TIDAK disaring (PRD §8: `keyakinan`, `sumber_dominan`, dan
-    `alasan_belum_terpetakan` harus tetap terlihat sebagai penjaga mutu).
+    """Baris penuh Peta Peran Desa (42 kolom) apa adanya.
+
+    Kolom mutu data seperti `keyakinan`, `sumber_dominan`, dan
+    `alasan_belum_terpetakan` tetap disertakan, tidak disaring. `iddesa`
+    yang tidak dikenal dijawab 404 `DESA_TIDAK_ADA`.
     """
     peta_peran_per_desa = wajib(simpanan.peta_peran_per_desa, "peta peran")
     baris = peta_peran_per_desa.get(iddesa)

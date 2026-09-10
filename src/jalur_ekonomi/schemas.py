@@ -13,7 +13,7 @@ from src.params import POLA_IDDESA, POLA_IDKAB
 
 
 class VarianJalurEkonomi(str, Enum):
-    """4 varian jalur ekonomi — nilai persis sesuai PRD §5."""
+    """Varian jalur ekonomi yang didukung sebagai parameter path `varian`."""
 
     KOMODITAS = "komoditas"
     GUDANG_KOPDES = "gudang-kopdes"

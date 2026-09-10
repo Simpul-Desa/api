@@ -4,7 +4,12 @@ from src.models import ModelDasar
 
 
 class TetanggaKembar(ModelDasar):
-    """Satu tetangga desa kembar; identitas di-join dari indeks kartu ekonomi."""
+    """Satu desa tetangga dalam hasil desa kembar.
+
+    Identitas tetangga (`nmdesa`, `nmkec`, `idkab`, `nmkab`) diambil dari
+    indeks kartu ekonomi. Bila `iddesa` tetangga tidak ada di sana, keempat
+    field itu bernilai `null` sementara `persen` tetap terisi.
+    """
 
     iddesa: str
     nmdesa: str | None

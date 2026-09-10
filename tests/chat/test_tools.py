@@ -124,7 +124,7 @@ def konteks_tak_boleh_disentuh(env_supabase: None) -> KonteksAlat:
 # --- 1. DEKLARASI_ALAT ------------------------------------------------------
 
 
-def test_deklarasi_alat_berisi_delapan_nama_yang_diharapkan() -> None:
+def test_deklarasi_alat_berisi_sembilan_nama_yang_diharapkan() -> None:
     nama = {d.name for d in DEKLARASI_ALAT}
     assert nama == {
         "cari_desa",
@@ -135,8 +135,9 @@ def test_deklarasi_alat_berisi_delapan_nama_yang_diharapkan() -> None:
         "berita_desa",
         "citra_potensi",
         "wilayah_ringkasan",
+        "cek_cakupan_wilayah",
     }
-    assert len(DEKLARASI_ALAT) == 8
+    assert len(DEKLARASI_ALAT) == 9
 
 
 # --- 2. tiap alat sukses pada masukan sah -----------------------------------
@@ -499,3 +500,102 @@ async def test_citra_potensi_format_skor_tanpa_kolom_mengembalikan_galat_data(
     )
 
     assert hasil == {"galat": DATA_BELUM_SIAP}
+
+
+# --- 17. cek_cakupan_wilayah --------------------------------------------------
+#
+# Fixture `dir_data_lengkap` (lihat tests/conftest.py) memuat satu provinsi
+# "Lampung" (idprov "18") dan dua kabupaten "KAB SATU"/"KAB DUA" (keduanya
+# idprov "18") -- data nyata TIDAK menyimpan awalan "Kabupaten"/"Kota" pada
+# `nmkab` (mis. "TANGGAMUS", bukan "Kabupaten Tanggamus"), jadi fixture ini
+# sudah representatif.
+
+
+async def test_cek_cakupan_wilayah_menemukan_provinsi(konteks: KonteksAlat) -> None:
+    hasil = await jalankan_alat("cek_cakupan_wilayah", {"nama": "lampung"}, konteks)
+
+    assert hasil["ditemukan"] is True
+    assert hasil["provinsi"] == [{"idprov": IDPROV, "nama": "Lampung"}]
+    assert hasil["kabupaten"] == []
+    assert "provinsi_tercakup" not in hasil
+
+
+async def test_cek_cakupan_wilayah_menemukan_kabupaten(konteks: KonteksAlat) -> None:
+    hasil = await jalankan_alat("cek_cakupan_wilayah", {"nama": "satu"}, konteks)
+
+    assert hasil["ditemukan"] is True
+    assert hasil["provinsi"] == []
+    assert hasil["kabupaten"] == [
+        {
+            "idkab": IDKAB_SATU,
+            "nmkab": "KAB SATU",
+            "idprov": IDPROV,
+            "nmprov": "Lampung",
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    "variasi",
+    ["KAB SATU", "kab satu", "Kab. Satu", "  kab   satu  ", "Kabupaten Satu"],
+    ids=["kapital", "huruf-kecil", "kab-titik", "spasi-berlebih", "awalan-panjang"],
+)
+async def test_cek_cakupan_wilayah_toleran_variasi_penulisan(
+    variasi: str, konteks: KonteksAlat
+) -> None:
+    hasil = await jalankan_alat("cek_cakupan_wilayah", {"nama": variasi}, konteks)
+
+    assert hasil["ditemukan"] is True
+    assert hasil["kabupaten"] == [
+        {
+            "idkab": IDKAB_SATU,
+            "nmkab": "KAB SATU",
+            "idprov": IDPROV,
+            "nmprov": "Lampung",
+        }
+    ]
+
+
+async def test_cek_cakupan_wilayah_menolak_wilayah_di_luar_cakupan(
+    konteks: KonteksAlat,
+) -> None:
+    hasil = await jalankan_alat(
+        "cek_cakupan_wilayah", {"nama": "Kabupaten Kediri"}, konteks
+    )
+
+    assert hasil["ditemukan"] is False
+    assert hasil["provinsi"] == []
+    assert hasil["kabupaten"] == []
+    assert hasil["provinsi_tercakup"] == [{"idprov": IDPROV, "nama": "Lampung"}]
+
+
+async def test_cek_cakupan_wilayah_nama_satu_huruf_mengembalikan_argumen_tidak_sah(
+    konteks: KonteksAlat,
+) -> None:
+    hasil = await jalankan_alat("cek_cakupan_wilayah", {"nama": "a"}, konteks)
+
+    assert hasil == {"galat": ARGUMEN_TIDAK_SAH}
+
+
+async def test_cek_cakupan_wilayah_nama_seratus_satu_huruf_mengembalikan_argumen_tidak_sah(
+    konteks: KonteksAlat,
+) -> None:
+    hasil = await jalankan_alat("cek_cakupan_wilayah", {"nama": "a" * 101}, konteks)
+
+    assert hasil == {"galat": ARGUMEN_TIDAK_SAH}
+
+
+async def test_cek_cakupan_wilayah_nama_bukan_string_mengembalikan_argumen_tidak_sah(
+    konteks: KonteksAlat,
+) -> None:
+    hasil = await jalankan_alat("cek_cakupan_wilayah", {"nama": 123}, konteks)
+
+    assert hasil == {"galat": ARGUMEN_TIDAK_SAH}
+
+
+async def test_cek_cakupan_wilayah_argumen_kosong_mengembalikan_argumen_tidak_sah(
+    konteks: KonteksAlat,
+) -> None:
+    hasil = await jalankan_alat("cek_cakupan_wilayah", {}, konteks)
+
+    assert hasil == {"galat": ARGUMEN_TIDAK_SAH}

@@ -110,7 +110,9 @@ punya label latih (89 dari 97 selamat), sedangkan Desa Kembar harus
 mencakup semua 97 kabupaten. Persen kemiripan memakai rumus GLOSSARY.
 
 **Tahap 5, GeoJSON.** `shapely.simplify(preserve_topology=True)`, properti
-dipangkas ke `{"iddesa", "nmdesa"}` saja, lalu ditulis gzip level 9.
+dipangkas ke `{"iddesa", "nmdesa", "pusat"}` — `pusat` (`[lon, lat]`) adalah
+titik tengah bbox geometri SETELAH disederhanakan, dibulatkan 5 desimal,
+dihitung lewat `bangun.pusat.pusat_bbox_fitur` — lalu ditulis gzip level 9.
 Sengaja hanya `json` + `shapely`, tanpa geopandas, untuk menghindari
 dependensi driver I/O-nya. Toleransi finalnya masih pertanyaan terbuka PRD
 §13 — angkanya menunggu cek visual di peta `../../app/`.

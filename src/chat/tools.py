@@ -49,6 +49,13 @@ _POLA_IDKAB = re.compile(r"\A[0-9]{4}\Z")
 _POLA_IDPROV = re.compile(r"\A[0-9]{2}\Z")
 _VARIAN_JALUR = frozenset({"komoditas", "gudang-kopdes", "cold-storage", "wisata"})
 
+# Awalan administratif yang sering disertakan pengguna padahal `wilayah.json`
+# menyimpan nama kabupaten TANPA awalan ini (mis. "TANGGAMUS", bukan
+# "Kabupaten Tanggamus"). Urutan tidak penting untuk kebenaran ("kabupaten "
+# dan "kab " tidak pernah sama-sama cocok pada string yang sama), tapi
+# ditulis dari yang paling panjang ke pendek untuk keterbacaan.
+_PREFIKS_ADMINISTRATIF = ("kabupaten ", "kab. ", "kab ", "kota ")
+
 
 @dataclass(frozen=True)
 class KonteksAlat:
@@ -182,6 +189,27 @@ DEKLARASI_ALAT = [
         description="Ambil ringkasan nasional: cacah provinsi, kabupaten, dan desa.",
         parameters_json_schema={"type": "object", "properties": {}},
     ),
+    types.FunctionDeclaration(
+        name="cek_cakupan_wilayah",
+        description=(
+            "Cek apakah nama provinsi atau kabupaten yang disebut pengguna ada dalam "
+            "cakupan data SIMPUL DESA. Mengembalikan provinsi dan/atau kabupaten yang "
+            "cocok beserta kodenya; bila tidak ada yang cocok, mengembalikan daftar "
+            "provinsi yang memang tercakup. Panggil ini sebelum menjawab pertanyaan "
+            "yang menyebut nama wilayah, sebelum mengasumsikan wilayahnya ada di "
+            "cakupan."
+        ),
+        parameters_json_schema={
+            "type": "object",
+            "properties": {
+                "nama": {
+                    "type": "string",
+                    "description": "Nama provinsi atau kabupaten yang disebut pengguna",
+                }
+            },
+            "required": ["nama"],
+        },
+    ),
 ]
 
 
@@ -197,7 +225,7 @@ def _argumen_sah(nama: str, argumen: dict[str, Any]) -> bool:
     mengirim argumen apa pun (tipe salah, kunci hilang, nilai liar), jadi
     diperiksa ulang di sini sebelum diteruskan ke lapis data.
     """
-    if nama == "cari_desa":
+    if nama in {"cari_desa", "cek_cakupan_wilayah"}:
         nilai = argumen.get("nama")
         return isinstance(nilai, str) and 2 <= len(nilai) <= 100
     if nama in {"kartu_ekonomi", "peta_peran", "desa_kembar", "berita_desa"}:
@@ -447,6 +475,74 @@ async def wilayah_ringkasan(konteks: KonteksAlat) -> dict[str, Any]:
     return wajib(konteks.simpanan.ringkasan_wilayah, "ringkasan wilayah")
 
 
+def _normalisasi_nama_wilayah(nama: str) -> str:
+    """Normalisasi ringan nama wilayah untuk pencocokan substring toleran.
+
+    Menangani variasi penulisan wajar: huruf besar-kecil, spasi berlebih, dan
+    awalan administratif "Kabupaten"/"Kab."/"Kota" (`_PREFIKS_ADMINISTRATIF`).
+    BUKAN fuzzy matching berat -- typo atau ejaan yang jauh berbeda tidak akan
+    cocok. Cukup untuk cakupan lima provinsi MVP, tidak menutup seluruh
+    variasi penulisan wilayah Indonesia.
+    """
+    dinormalisasi = re.sub(r"\s+", " ", nama.strip()).casefold()
+    for prefiks in _PREFIKS_ADMINISTRATIF:
+        if dinormalisasi.startswith(prefiks):
+            return dinormalisasi[len(prefiks) :]
+    return dinormalisasi
+
+
+async def cek_cakupan_wilayah(konteks: KonteksAlat, nama: str) -> dict[str, Any]:
+    """Cek keberadaan nama provinsi/kabupaten di `wilayah.json`.
+
+    Pencocokan substring atas nama yang dinormalisasi
+    (`_normalisasi_nama_wilayah`) di KEDUA sisi -- query dan kandidat --
+    supaya "Kab. Tanggamus", "kab tanggamus", dan "TANGGAMUS" sama-sama
+    cocok walau `wilayah.json` menyimpan nama TANPA awalan administratif.
+
+    Tidak ada yang cocok BUKAN galat: `ditemukan: False` disertai daftar
+    provinsi yang memang tercakup (dibaca dari `wilayah.json`, bukan
+    ditulis literal), supaya model bisa menjawab jujur soal cakupan tanpa
+    mengarang nama provinsi.
+
+    Dipotong ke `MAKS_BARIS_ALAT` sekadar jaring pengaman -- `wilayah.json`
+    MVP hanya memuat lima provinsi dan puluhan kabupaten, jadi pemotongan
+    praktis tidak pernah terjadi kecuali query sangat generik (mis. satu
+    kata yang kebetulan cocok di banyak nama kabupaten).
+    """
+    wilayah = wajib(konteks.simpanan.wilayah, "wilayah")
+    kunci = _normalisasi_nama_wilayah(nama)
+
+    provinsi_cocok = [
+        {"idprov": p["idprov"], "nama": p["nama"]}
+        for p in wilayah["provinsi"]
+        if kunci in _normalisasi_nama_wilayah(p["nama"])
+    ][:MAKS_BARIS_ALAT]
+
+    peta_nama_provinsi = {p["idprov"]: p["nama"] for p in wilayah["provinsi"]}
+    kabupaten_cocok = [
+        {
+            "idkab": k["idkab"],
+            "nmkab": k["nmkab"],
+            "idprov": k["idprov"],
+            "nmprov": peta_nama_provinsi.get(k["idprov"]),
+        }
+        for k in wilayah["kabupaten"]
+        if kunci in _normalisasi_nama_wilayah(k["nmkab"])
+    ][:MAKS_BARIS_ALAT]
+
+    ditemukan = bool(provinsi_cocok or kabupaten_cocok)
+    hasil: dict[str, Any] = {
+        "ditemukan": ditemukan,
+        "provinsi": provinsi_cocok,
+        "kabupaten": kabupaten_cocok,
+    }
+    if not ditemukan:
+        hasil["provinsi_tercakup"] = [
+            {"idprov": p["idprov"], "nama": p["nama"]} for p in wilayah["provinsi"]
+        ]
+    return hasil
+
+
 _ALAT: dict[str, Callable[..., Awaitable[dict[str, Any]]]] = {
     "cari_desa": cari_desa,
     "kartu_ekonomi": kartu_ekonomi,
@@ -456,6 +552,7 @@ _ALAT: dict[str, Callable[..., Awaitable[dict[str, Any]]]] = {
     "berita_desa": berita_desa,
     "citra_potensi": citra_potensi,
     "wilayah_ringkasan": wilayah_ringkasan,
+    "cek_cakupan_wilayah": cek_cakupan_wilayah,
 }
 
 

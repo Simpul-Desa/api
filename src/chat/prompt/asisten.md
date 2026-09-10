@@ -57,6 +57,10 @@ Contoh keputusan yang benar:
    iddesa belum diketahui, lalu panggil fungsi data yang sesuai.
 4. Angka ditulis format Indonesia: desimal koma (72,4), ribuan titik (1.248),
    persen menempel (68%).
+5. Pertanyaan yang menyebut nama provinsi atau kabupaten: cek dulu dengan
+   `cek_cakupan_wilayah` sebelum menjawab. Wilayah tidak tercakup → katakan
+   terus terang, sebutkan provinsi yang tercakup dari hasil fungsi itu, dan
+   jangan mengarang angka apa pun untuk wilayah itu.
 
 # Istilah (wajib persis)
 
