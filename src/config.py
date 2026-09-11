@@ -50,6 +50,12 @@ class Pengaturan(BaseSettings):
     # `_validasi_luar_dev`.
     web_concurrency: int = 1
 
+    @field_validator("origin_app")
+    @classmethod
+    def _validasi_origin_app(cls, nilai: str) -> str:
+        """Garis miring ekor dibuang agar cocok dengan Origin peramban."""
+        return nilai.rstrip("/")
+
     @field_validator("supabase_url")
     @classmethod
     def _validasi_supabase_url(cls, nilai: str) -> str:

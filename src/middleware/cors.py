@@ -65,7 +65,7 @@ def _origin_diizinkan(path: str, metode: str, origin: str) -> str | None:
     """
     if metode == "GET" and _cocok_publik(path):
         return "*"
-    if origin == ambil_pengaturan().origin_app:
+    if origin.rstrip("/") == ambil_pengaturan().origin_app.rstrip("/"):
         return origin
     return None
 

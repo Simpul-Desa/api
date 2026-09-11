@@ -1,10 +1,11 @@
 # Layanan Backend SIMPUL DESA
 
-API HTTP baca-saja di atas artefak data beku, ditambah tiga fitur dinamis:
-Asisten Desa (LLM), Berita Desa (panen RSS ke Supabase), dan Laporan Desa
-(PDF).
+API HTTP baca-saja di atas artefak data beku untuk lima fitur utama, ditambah
+empat fitur tambahan: Asisten Desa (LLM), Berita Desa (panen RSS ke Supabase),
+Laporan Desa (PDF), dan Halaman Admin (manajemen peran, kurasi berita, dan
+pemantauan status sistem).
 
-Repo ini adalah satu dari empat sistem SIMPUL DESA (DATATHON 2026 — Sistem
+Repo ini adalah modul API, satu dari empat modul SIMPUL DESA (DATATHON 2026 — Sistem
 Intelijen Potensi dan Kesiapan Ekonomi Desa):
 
 | Modul | Repo | Peran |
