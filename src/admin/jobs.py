@@ -55,6 +55,21 @@ def sedang_berjalan(app: FastAPI) -> bool:
     return pekerjaan is not None and pekerjaan.keadaan == "berjalan"
 
 
+def batalkan(app: FastAPI) -> bool:
+    """Hentikan pekerjaan penyegaran yang sedang berjalan bila ada."""
+    if not sedang_berjalan(app):
+        return False
+    tugas: asyncio.Task | None = getattr(app.state, "tugas_penyegaran", None)
+    if tugas and not tugas.done():
+        tugas.cancel()
+    pekerjaan: Pekerjaan | None = getattr(app.state, "pekerjaan_penyegaran", None)
+    if pekerjaan is not None:
+        app.state.pekerjaan_penyegaran = replace(
+            pekerjaan, keadaan="selesai", selesai_pada=datetime.now(UTC)
+        )
+    return True
+
+
 def mulai(app: FastAPI, desa: list[tuple[str, str, str]]) -> Pekerjaan:
     """Pasang pekerjaan `berjalan` ke `app.state` dan lepas `_jalankan` di latar.
 

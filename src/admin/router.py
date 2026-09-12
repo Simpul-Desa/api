@@ -90,6 +90,19 @@ async def segarkan_berita(
     )
 
 
+@router.post(
+    "/berita/batal",
+    response_model=Amplop[dict[str, str]],
+    summary="Batalkan Pekerjaan Penyegaran",
+    response_description="Status pembatalan pekerjaan",
+    responses=RESPONS_VALIDASI,
+)
+async def batalkan_penyegaran(request: Request) -> Amplop[dict[str, str]]:
+    """Batalkan pekerjaan latar penyegaran berita yang sedang berjalan."""
+    dibatalkan = jobs.batalkan(request.app)
+    return sukses({"status": "dibatalkan" if dibatalkan else "tidak_ada_pekerjaan"})
+
+
 @router.delete(
     "/berita/{id_berita}",
     response_model=Amplop[BeritaTerhapus],
