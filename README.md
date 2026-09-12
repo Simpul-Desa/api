@@ -26,7 +26,7 @@ Berita Desa, Administrasi, dan Laporan Desa.
 
 | Ukuran | Nilai |
 |---|---|
-| Rute terdaftar di `/openapi.json` | 26 path, 26 operasi, 14 tag |
+| Rute terdaftar di `/openapi.json` | 27 path, 27 operasi, 14 tag |
 | Uji | 755 lulus, ±8 detik |
 | Cakupan uji `src/` + `bangun/` | 99% |
 | Kode aplikasi `src/` | 87 berkas, ±7.300 baris |
@@ -172,7 +172,7 @@ Ringkasnya, dikelompokkan menurut akses minimum:
 | Tamu | `GET /api/profil/saya` · `GET /api/model/peta-peran` (+ `/ringkasan`, `/{iddesa}`) · `GET /api/model/citra-potensi` (+ `/sel`) · `GET /api/model/jalur-ekonomi/{varian}` (+ `/{id_jalur}`) · `GET /api/model/desa-kembar/{iddesa}` · `GET /api/berita/{iddesa}` |
 | Pemerintah / Swasta | `POST /api/chat` |
 | Pemerintah | `GET /api/laporan/{iddesa}` |
-| Admin | `POST /api/admin/berita/segarkan` · `DELETE /api/admin/berita/{id_berita}` · `GET /api/admin/pengguna` · `POST /api/admin/pengguna/{id_pengguna}/peran` · `GET /api/admin/status` |
+| Admin | `POST /api/admin/berita/segarkan` · `POST /api/admin/berita/batal` · `DELETE /api/admin/berita/{id_berita}` · `GET /api/admin/pengguna` · `POST /api/admin/pengguna/{id_pengguna}/peran` · `GET /api/admin/status` |
 
 `{varian}` ∈ `komoditas · gudang-kopdes · cold-storage · wisata`.
 

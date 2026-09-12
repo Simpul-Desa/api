@@ -1,6 +1,6 @@
-"""Rute admin SIMPUL DESA: penyegaran berita, hapus berita, pengguna, status.
+"""Rute admin SIMPUL DESA: penyegaran berita, pembatalan, hapus berita, pengguna, status.
 
-Lima rute PRD §5 fase 7. Akses admin ditegakkan di titik `include_router`
+Enam rute PRD §5 fase 7. Akses admin ditegakkan di titik `include_router`
 (`main.py`), pola yang sama dengan router tamu fase 3/4. Rute ubah peran
 JUGA meminta dependensi `wajib_admin` secara eksplisit karena butuh nilai
 `identitas.id` untuk penjaga peran-sendiri — FastAPI meng-cache dependensi

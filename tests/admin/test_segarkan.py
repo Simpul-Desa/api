@@ -253,3 +253,67 @@ async def test_shutdown_tidak_menggantung_walau_panen_masih_blocking(
     # Tenggat 0,2 detik + ongkos permintaan; jauh di bawah 30 detik blokir
     # panen palsu, jadi ini membuktikan shutdown TIDAK menunggu threadnya.
     assert lama < 5.0, f"shutdown menggantung {lama:.2f}s"
+
+
+@pytest.mark.integration
+async def test_batal_saat_tidak_ada_pekerjaan(
+    dir_data_lengkap: Path,
+    env_admin: None,
+    buat_klien: PembuatKlien,
+) -> None:
+    app = aplikasi_admin()
+    klien = await buat_klien(app, lifespan=True)
+
+    respons = await klien.post("/api/admin/berita/batal")
+    assert respons.status_code == 200
+    body = respons.json()
+    assert body["sukses"] is True
+    assert body["data"]["status"] == "tidak_ada_pekerjaan"
+
+
+@pytest.mark.integration
+async def test_batal_saat_pekerjaan_berjalan(
+    dir_data_lengkap: Path,
+    env_admin: None,
+    buat_klien: PembuatKlien,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    boleh_lanjut = threading.Event()
+    sudah_masuk = threading.Event()
+
+    def _panen_blokir(
+        klien: object, pengaturan: object, iddesa: str, nmdesa: str, nmkab: str
+    ) -> HasilPanen:
+        sudah_masuk.set()
+        boleh_lanjut.wait(timeout=5)
+        return HasilPanen(iddesa=iddesa, n_baru=0, n_duplikat=0, n_dibuang=0, n_gagal=0)
+
+    monkeypatch.setattr(jobs, "panen_desa", _panen_blokir)
+    app = aplikasi_admin()
+    klien = await buat_klien(app, lifespan=True)
+
+    respons_mulai = await klien.post(
+        "/api/admin/berita/segarkan", json={"iddesa": [D1]}
+    )
+    assert respons_mulai.status_code == 202
+
+    for _ in range(200):
+        if sudah_masuk.is_set():
+            break
+        await asyncio.sleep(0.01)
+    assert sudah_masuk.is_set()
+
+    respons_batal = await klien.post("/api/admin/berita/batal")
+    assert respons_batal.status_code == 200
+    body = respons_batal.json()
+    assert body["sukses"] is True
+    assert body["data"]["status"] == "dibatalkan"
+
+    boleh_lanjut.set()
+    tugas = app.state.tugas_penyegaran
+    if tugas is not None:
+        try:
+            await tugas
+        except (asyncio.CancelledError, Exception):
+            pass
+
