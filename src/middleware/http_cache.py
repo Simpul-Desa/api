@@ -49,6 +49,7 @@ PREFIKS_TANPA_CACHE: Final[tuple[str, ...]] = (
     "/api/admin",
     "/api/laporan",
     "/api/chat",
+    "/api/ai-insight",
 )
 
 

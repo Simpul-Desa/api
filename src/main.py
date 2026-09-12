@@ -15,6 +15,7 @@ from fastapi import Depends, FastAPI
 from slowapi.errors import RateLimitExceeded
 
 from src.admin.router import router as router_admin
+from src.ai_insight.router import router as router_ai_insight
 from src.auth.dependencies import (
     wajib_admin,
     wajib_di_atas_tamu,
@@ -123,6 +124,13 @@ TAG_OPENAPI: list[dict[str, Any]] = [
             "Antarmuka percakapan berbasis LLM yang menjawab hanya dari data "
             "SIMPUL DESA dan menolak topik di luar itu. Butuh peran di atas "
             "tamu."
+        ),
+    },
+    {
+        "name": "AI Insight",
+        "description": (
+            "Insight kondisi ekonomi dan rekomendasi aktor otomatis berbasis LLM "
+            "untuk tiap desa. Butuh peran di atas tamu."
         ),
     },
     {
@@ -295,6 +303,7 @@ def create_app() -> FastAPI:
     app.include_router(router_admin, dependencies=[Depends(wajib_admin)])
     app.include_router(router_laporan, dependencies=[Depends(wajib_pemerintah)])
     app.include_router(router_geo)
+    app.include_router(router_ai_insight)
     return app
 
 

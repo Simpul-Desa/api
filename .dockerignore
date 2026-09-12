@@ -30,5 +30,6 @@ pyproject.toml
 requirements-dev.txt
 requirements-build.txt
 *.md
+!src/**/*.md
 Dockerfile
 .dockerignore

@@ -170,7 +170,7 @@ Ringkasnya, dikelompokkan menurut akses minimum:
 |---|---|
 | Anonim | `GET /health` · `GET /api/wilayah/{provinsi,kabupaten,desa,ringkasan,pusat}` · `GET /api/desa/cari` · `GET /api/model/kartu/{iddesa}` · `GET /api/geo/desa/{idkab}` |
 | Tamu | `GET /api/profil/saya` · `GET /api/model/peta-peran` (+ `/ringkasan`, `/{iddesa}`) · `GET /api/model/citra-potensi` (+ `/sel`) · `GET /api/model/jalur-ekonomi/{varian}` (+ `/{id_jalur}`) · `GET /api/model/desa-kembar/{iddesa}` · `GET /api/berita/{iddesa}` |
-| Pemerintah / Swasta | `POST /api/chat` |
+| Pemerintah / Swasta | `POST /api/chat` · `POST /api/ai-insight` |
 | Pemerintah | `GET /api/laporan/{iddesa}` |
 | Admin | `POST /api/admin/berita/segarkan` · `POST /api/admin/berita/batal` · `DELETE /api/admin/berita/{id_berita}` · `GET /api/admin/pengguna` · `POST /api/admin/pengguna/{id_pengguna}/peran` · `GET /api/admin/status` |
 
@@ -286,7 +286,7 @@ Pemisahan prefiksnya:
 |---|---|
 | `PREFIKS_PUBLIK` (CORS terbuka) | `/health` · `/api/wilayah` · `/api/desa` · `/api/model/kartu` · `/api/geo` · `/openapi.json` · `/docs` |
 | `PREFIKS_CACHE` (ETag + 304) | `/api/wilayah` · `/api/desa` · `/api/model/kartu` · `/api/geo` |
-| `PREFIKS_TANPA_CACHE` (`no-store`) | `/api/model/peta-peran` · `/api/model/citra-potensi` · `/api/model/jalur-ekonomi` · `/api/model/desa-kembar` · `/api/berita` · `/api/profil` · `/api/admin` · `/api/laporan` · `/api/chat` |
+| `PREFIKS_TANPA_CACHE` (`no-store`) | `/api/model/peta-peran` · `/api/model/citra-potensi` · `/api/model/jalur-ekonomi` · `/api/model/desa-kembar` · `/api/berita` · `/api/profil` · `/api/admin` · `/api/laporan` · `/api/chat` · `/api/ai-insight` |
 
 Kenapa dipisah begitu: `Cache-Control: public` pada respons berotorisasi
 membuat shared cache membocorkan body ke pemanggil lain, dan 304 dari
