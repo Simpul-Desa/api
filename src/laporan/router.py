@@ -14,7 +14,7 @@ from src.datastore import Simpanan, ambil_simpanan, wajib
 from src.exceptions import DESA_TIDAK_ADA, GalatAPI
 from src.kartu.service import baca_kartu_kab
 from src.laporan.pdf import bangun_pdf
-from src.laporan.service import rakit_ringkasan
+from src.laporan.service import cari_citra_unggulan, rakit_ringkasan
 from src.models import RESPONS_VALIDASI
 from src.params import ParamIddesa
 
@@ -77,8 +77,21 @@ async def laporan_desa(
     if pp is None:
         raise GalatAPI(DESA_TIDAK_ADA, f"desa {iddesa} tidak dikenal", 404)
 
+    citra_unggulan = await run_in_threadpool(
+        cari_citra_unggulan,
+        iddesa,
+        idkab,
+        str(simpanan.dir_data),
+        simpanan.citra_indeks,
+        kartu.get("potensi"),
+    )
+
     ringkasan = rakit_ringkasan(
-        kartu, pp, request.app.state.manifest, _nama_provinsi(simpanan, idkab)
+        kartu,
+        pp,
+        request.app.state.manifest,
+        _nama_provinsi(simpanan, idkab),
+        citra_unggulan,
     )
     pdf = await run_in_threadpool(bangun_pdf, ringkasan)
 

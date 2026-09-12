@@ -9,22 +9,9 @@ Fungsi murni — tanpa FastAPI, tanpa I/O. Merender `RingkasanLaporan`
 import math
 from typing import Any
 
+from src.citra_potensi.service import baca_sel_citra
 from src.laporan.constants import JUDUL_SEKSI, KOORDINAT_PLACEHOLDER, NILAI_KOSONG
 from src.laporan.schemas import BarisNilai, RingkasanLaporan, SeksiRingkas, SeksiTabel
-
-# Urutan dan kunci baris seksi Fakta Program — "apa adanya", label = nama
-# kunci mentah `kartu.fakta_program` (tabel "Isi laporan" rencana fase 8).
-_KUNCI_FAKTA_PROGRAM: tuple[str, ...] = (
-    "jadesta",
-    "desa_wisata_sisparnas",
-    "n_daya_tarik_wisata",
-    "kampung_budidaya",
-    "kampung_nelayan",
-    "cold_storage_eksisting",
-    "cold_storage_terlayani",
-    "belum_tersentuh",
-    "catatan",
-)
 
 
 def _teks(nilai: Any) -> str:
@@ -67,26 +54,22 @@ def _koordinat(identitas: dict[str, Any]) -> str:
     return f"{_teks(lat)}, {_teks(lon)}"
 
 
-def _seksi_identitas(kartu: dict[str, Any]) -> SeksiRingkas:
-    identitas = kartu.get("identitas") or {}
-    return SeksiRingkas(
-        judul=JUDUL_SEKSI[0],
-        baris=[
-            BarisNilai(label="Kode desa", nilai=_teks(identitas.get("iddesa"))),
-            BarisNilai(label="Kode Dagri", nilai=_teks(identitas.get("kode_dagri"))),
-            BarisNilai(label="Tipe", nilai=_teks(identitas.get("tipe"))),
-            BarisNilai(label="Luas (km2)", nilai=_teks(identitas.get("luas_km2"))),
-            BarisNilai(label="Koordinat", nilai=_koordinat(identitas)),
-        ],
-    )
+def _gabung(sumber: dict[str, Any], kunci_menit: str, kunci_tempat: str) -> str:
+    menit = sumber.get(kunci_menit)
+    tempat = sumber.get(kunci_tempat)
+    if menit is None and tempat is None:
+        return NILAI_KOSONG
+    if tempat:
+        return f"{_teks(menit)} ({_teks(tempat)})"
+    return _teks(menit)
 
 
-def _seksi_peta_peran(kartu: dict[str, Any], pp: dict[str, Any]) -> SeksiRingkas:
-    """`pp` = baris penuh `peta_peran.json`; `kartu["peta_peran"]` cuma
-    dipakai untuk peringkat kabupaten — dua bentuk BEDA, jangan tertukar."""
+def _seksi_detail_peta_peran(kartu: dict[str, Any], pp: dict[str, Any]) -> SeksiRingkas:
+    """`pp` = baris penuh `peta_peran.json`; `kartu['peta_peran']` cuma
+    dipakai untuk peringkat kabupaten."""
     peringkat = kartu.get("peta_peran") or {}
     return SeksiRingkas(
-        judul=JUDUL_SEKSI[1],
+        judul=JUDUL_SEKSI[0],
         baris=[
             BarisNilai(label="Zona", nilai=_teks(pp.get("zona"))),
             BarisNilai(label="Nomor zona", nilai=_teks(pp.get("nomor_zona"))),
@@ -113,8 +96,10 @@ def _seksi_peta_peran(kartu: dict[str, Any], pp: dict[str, Any]) -> SeksiRingkas
                 nilai=f"{_teks(pp.get('ambang_sp'))} / {_teks(pp.get('ambang_sk'))}",
             ),
             BarisNilai(label="Jarak ke ambang", nilai=_teks(pp.get("jarak_ke_ambang"))),
+            BarisNilai(label="Kelengkapan bukti SK", nilai=_teks(pp.get("kelengkapan_sk"))),
         ],
     )
+
 
 
 def _seksi_potensi(kartu: dict[str, Any]) -> tuple[SeksiRingkas, SeksiTabel | None]:
@@ -139,7 +124,7 @@ def _seksi_potensi(kartu: dict[str, Any]) -> tuple[SeksiRingkas, SeksiTabel | No
     # subsektor tanpa skor cuma tampil "-" dan pembaca tidak tahu apakah
     # datanya hilang atau memang tidak berlaku untuk desa itu.
     tabel = SeksiTabel(
-        judul=JUDUL_SEKSI[2],
+        judul=JUDUL_SEKSI[1],
         kepala=["Subsektor", "Skor", "Keterangan"],
         baris=[
             [
@@ -153,56 +138,34 @@ def _seksi_potensi(kartu: dict[str, Any]) -> tuple[SeksiRingkas, SeksiTabel | No
     return ringkas, tabel
 
 
-def _seksi_kesiapan(kartu: dict[str, Any], pp: dict[str, Any]) -> SeksiRingkas:
-    kesiapan = kartu.get("kesiapan") or {}
+def _seksi_kartu_ekonomi_profil(
+    kartu: dict[str, Any], pp: dict[str, Any]
+) -> SeksiRingkas:
+    identitas = kartu.get("identitas") or {}
+    logistik = kartu.get("logistik") or {}
     return SeksiRingkas(
-        judul=JUDUL_SEKSI[3],
+        judul=JUDUL_SEKSI[1],
         baris=[
-            BarisNilai(
-                label="Kelengkapan bukti SK", nilai=_teks(pp.get("kelengkapan_sk"))
-            ),
-            BarisNilai(
-                label="Komponen hilang", nilai=_teks(pp.get("komponen_sk_hilang"))
-            ),
+            BarisNilai(label="Tipe", nilai=_teks(identitas.get("tipe"))),
+            BarisNilai(label="Kode desa", nilai=_teks(identitas.get("iddesa"))),
+            BarisNilai(label="Kode Dagri", nilai=_teks(identitas.get("kode_dagri"))),
+            BarisNilai(label="Luas (km2)", nilai=_teks(identitas.get("luas_km2"))),
+            BarisNilai(label="Koordinat", nilai=_koordinat(identitas)),
             BarisNilai(
                 label="IDM",
                 nilai=f"{_teks(pp.get('idm'))} ({_teks(pp.get('idm_status'))})",
             ),
-            BarisNilai(label="Kelembagaan", nilai=_teks(kesiapan.get("kelembagaan"))),
-            BarisNilai(
-                label="Amenitas (POI)", nilai=_teks(kesiapan.get("amenitas_poi"))
-            ),
-            BarisNilai(
-                label="Infrastruktur per 1000 ruta",
-                nilai=_teks(pp.get("infra_per_1000_ruta")),
-            ),
-        ],
-    )
-
-
-def _seksi_logistik(kartu: dict[str, Any], pp: dict[str, Any]) -> SeksiRingkas:
-    logistik = kartu.get("logistik") or {}
-
-    def _gabung(kunci_menit: str, kunci_tempat: str) -> str:
-        return (
-            f"{_teks(logistik.get(kunci_menit))} "
-            f"({_teks(logistik.get(kunci_tempat))})"
-        )
-
-    return SeksiRingkas(
-        judul=JUDUL_SEKSI[4],
-        baris=[
             BarisNilai(
                 label="Menit ke pusat kota",
-                nilai=_gabung("menit_ke_pusat_kota", "pusat_kota"),
+                nilai=_gabung(logistik, "menit_ke_pusat_kota", "pusat_kota"),
             ),
             BarisNilai(
                 label="Menit ke bandara",
-                nilai=_gabung("menit_ke_bandara", "bandara"),
+                nilai=_gabung(logistik, "menit_ke_bandara", "bandara"),
             ),
             BarisNilai(
                 label="Menit ke pelabuhan",
-                nilai=_gabung("menit_ke_pelabuhan", "pelabuhan"),
+                nilai=_gabung(logistik, "menit_ke_pelabuhan", "pelabuhan"),
             ),
             BarisNilai(
                 label="Sentralitas (menit)", nilai=_teks(pp.get("sentralitas_menit"))
@@ -211,15 +174,144 @@ def _seksi_logistik(kartu: dict[str, Any], pp: dict[str, Any]) -> SeksiRingkas:
     )
 
 
+def _seksi_kartu_ekonomi_subsektor(kartu: dict[str, Any]) -> SeksiTabel | None:
+    potensi = kartu.get("potensi") or {}
+    sub_skor = potensi.get("sub_skor") or {}
+    if not sub_skor:
+        return None
+    return SeksiTabel(
+        judul=JUDUL_SEKSI[1],
+        kepala=["Subsektor", "Skor", "Keterangan"],
+        baris=[
+            [
+                _teks((butir or {}).get("label")),
+                _teks((butir or {}).get("persentil")),
+                _teks((butir or {}).get("kosong")),
+            ]
+            for butir in sub_skor.values()
+        ],
+    )
+
+
+def _seksi_rekomendasi(kartu: dict[str, Any]) -> SeksiRingkas:
+    return SeksiRingkas(
+        judul=JUDUL_SEKSI[1],
+        baris=[
+            BarisNilai(label="Rekomendasi", nilai=_teks(kartu.get("rekomendasi_aksi")))
+        ],
+    )
+
+
+def cari_citra_unggulan(
+    iddesa: str,
+    idkab: str,
+    dir_data_str: str | None = None,
+    citra_indeks: dict[str, Any] | None = None,
+    potensi: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    """Cari komoditas citra potensi paling unggul untuk desa ini."""
+    if potensi and potensi.get("detail_dominan") and potensi.get("sumber_dominan") == "citra":
+        dd = dict(potensi["detail_dominan"])
+        dominan_teks = str(potensi.get("dominan") or "")
+        subsektor = dominan_teks.split("—")[0].strip() if "—" in dominan_teks else ""
+        dd.setdefault("subsektor", subsektor)
+        return dd
+
+    if not citra_indeks or not dir_data_str:
+        if potensi and potensi.get("detail_dominan"):
+            return dict(potensi["detail_dominan"])
+        return None
+
+    prov = iddesa[:2]
+    kandidat: list[dict[str, Any]] = []
+    for s in citra_indeks.get("sel", []):
+        if s.get("prov") != prov:
+            continue
+        isi = baca_sel_citra(dir_data_str, s.get("berkas", ""))
+        if not isi or "skor" not in isi or iddesa not in isi["skor"]:
+            continue
+        fmt = isi.get("format_skor", [])
+        if "skor100_dlm_kab" not in fmt:
+            continue
+        idx_skor = fmt.index("skor100_dlm_kab")
+        idx_rank = fmt.index("peringkat_dlm_kab") if "peringkat_dlm_kab" in fmt else -1
+        idx_n = fmt.index("n_desa_kab") if "n_desa_kab" in fmt else -1
+        val = isi["skor"][iddesa]
+        skor100 = val[idx_skor]
+        rank = val[idx_rank] if idx_rank != -1 else 0
+        n_desa = val[idx_n] if idx_n != -1 else 0
+        kandidat.append(
+            {
+                "komoditas": s.get("nama", "").strip(),
+                "subsektor": s.get("subsektor", ""),
+                "skor100": skor100,
+                "peringkat_dlm_kab": rank,
+                "n_desa_kab": n_desa,
+                "ap_sel": s.get("ap_uji_tertahan"),
+                "sumber": "Citra Potensi Desa v5 (analisis spasial satelit & AI)",
+            }
+        )
+
+    if not kandidat:
+        if potensi and potensi.get("detail_dominan"):
+            return dict(potensi["detail_dominan"])
+        return None
+
+    kandidat.sort(key=lambda x: (-x["skor100"], x["peringkat_dlm_kab"]))
+    return kandidat[0]
+
+
+def _seksi_citra_potensi(
+    kartu: dict[str, Any], citra_unggulan: dict[str, Any] | None
+) -> SeksiRingkas:
+    potensi = kartu.get("potensi") or {}
+    citra = citra_unggulan or potensi.get("detail_dominan")
+    if not citra:
+        return SeksiRingkas(
+            judul=JUDUL_SEKSI[2],
+            baris=[
+                BarisNilai(label="Komoditas Unggulan", nilai="tidak ada"),
+                BarisNilai(
+                    label="Sumber Model",
+                    nilai=_teks(potensi.get("sumber_dominan")),
+                ),
+            ],
+        )
+
+    peringkat_teks = (
+        f"Peringkat {_teks(citra.get('peringkat_dlm_kab'))} dari {_teks(citra.get('n_desa_kab'))} desa"
+        if citra.get("peringkat_dlm_kab") is not None
+        else NILAI_KOSONG
+    )
+    skor_teks = (
+        f"{_teks(citra.get('skor100'))} / 100"
+        if citra.get("skor100") is not None
+        else NILAI_KOSONG
+    )
+    sumber = citra.get("sumber") or potensi.get("sumber_dominan")
+
+    return SeksiRingkas(
+        judul=JUDUL_SEKSI[2],
+        baris=[
+            BarisNilai(label="Komoditas Unggulan", nilai=_teks(citra.get("komoditas"))),
+            BarisNilai(label="Subsektor", nilai=_teks(citra.get("subsektor"))),
+            BarisNilai(label="Skor Citra Potensi", nilai=skor_teks),
+            BarisNilai(label="Peringkat dalam kabupaten", nilai=peringkat_teks),
+            BarisNilai(label="Akurasi Model (AP)", nilai=_teks(citra.get("ap_sel"))),
+            BarisNilai(label="Sumber Model", nilai=_teks(sumber)),
+        ],
+    )
+
+
 def _seksi_desa_kembar(kartu: dict[str, Any]) -> SeksiTabel | SeksiRingkas:
     desa_kembar = kartu.get("desa_kembar") or []
     if not desa_kembar:
         return SeksiRingkas(
-            judul=JUDUL_SEKSI[5],
+            judul=JUDUL_SEKSI[3],
             baris=[BarisNilai(label="Desa Kembar", nilai="tidak ada")],
         )
     return SeksiTabel(
-        judul=JUDUL_SEKSI[5],
+        judul=JUDUL_SEKSI[3],
         kepala=["Kode desa", "Nama", "Kecamatan", "Kemiripan", "Zona"],
         baris=[
             [
@@ -234,98 +326,61 @@ def _seksi_desa_kembar(kartu: dict[str, Any]) -> SeksiTabel | SeksiRingkas:
     )
 
 
-def _seksi_fakta_program(kartu: dict[str, Any]) -> SeksiRingkas:
-    fakta = kartu.get("fakta_program") or {}
-    return SeksiRingkas(
-        judul=JUDUL_SEKSI[6],
-        baris=[
-            BarisNilai(label=kunci, nilai=_teks(fakta.get(kunci)))
-            for kunci in _KUNCI_FAKTA_PROGRAM
-        ],
-    )
-
-
-def _seksi_rekomendasi(kartu: dict[str, Any]) -> SeksiRingkas:
-    return SeksiRingkas(
-        judul=JUDUL_SEKSI[7],
-        baris=[
-            BarisNilai(label="Rekomendasi", nilai=_teks(kartu.get("rekomendasi_aksi")))
-        ],
-    )
-
-
-def _seksi_mutu(kartu: dict[str, Any]) -> SeksiRingkas:
-    mutu = kartu.get("mutu_data") or {}
-    return SeksiRingkas(
-        judul=JUDUL_SEKSI[8],
-        baris=[
-            BarisNilai(label="Punya geometri", nilai=_teks(mutu.get("punya_geometri"))),
-            BarisNilai(label="Punya ST2023", nilai=_teks(mutu.get("punya_st2023"))),
-            BarisNilai(label="Punya IDM", nilai=_teks(mutu.get("punya_idm"))),
-            BarisNilai(
-                label="Kelengkapan bukti SK",
-                nilai=_teks(mutu.get("kelengkapan_bukti_sk")),
-            ),
-        ],
-    )
-
-
 def rakit_ringkasan(
     kartu: dict[str, Any],
     pp: dict[str, Any],
     manifest: dict[str, Any] | None,
     nama_provinsi: str | None = None,
+    citra_unggulan: dict[str, Any] | None = None,
 ) -> RingkasanLaporan:
-    """Rakit kesembilan seksi Laporan Desa dari satu `kartu` + satu baris
-    penuh `pp`. Sumber tiap label mengikuti tabel "Isi laporan" di rencana
-    fase 8 persis - tidak menebak. Seksi "Potensi Dominan" bisa terdiri
-    dari dua entri berurutan (ringkas lalu tabel sub-skor) berbagi judul
-    yang sama, karena satu `Seksi` cuma bisa satu jenis."""
+    """Rakit Laporan Desa komprehensif: Detail Peta Peran, Kartu Ekonomi Desa,
+    Citra Potensi Unggulan, dan Desa Kembar."""
     identitas = kartu.get("identitas") or {}
     judul = f"LAPORAN DESA — {_teks(identitas.get('nama'))}"
-    # `identitas.provinsi` di kartu berisi KODE provinsi (mis. "33"), bukan
-    # namanya. Kode telanjang tidak terbaca di dokumen yang dibawa ke rapat
-    # dinas, jadi pemanggil boleh menyuplai nama dari `wilayah.json`; tanpa
-    # itu kode aslinya tetap dicetak apa adanya, tidak pernah dibuang.
     provinsi = nama_provinsi or identitas.get("provinsi")
     subjudul = (
         f"{_teks(identitas.get('kecamatan'))}, {_teks(identitas.get('kabupaten'))}, "
         f"{_teks(provinsi)} · {_teks(identitas.get('iddesa'))}"
     )
 
+    if citra_unggulan is None:
+        citra_unggulan = cari_citra_unggulan(
+            str(identitas.get("iddesa") or ""),
+            str(identitas.get("iddesa") or "")[:4],
+            potensi=kartu.get("potensi"),
+        )
+
     seksi: list[SeksiRingkas | SeksiTabel] = [
-        _seksi_identitas(kartu),
-        _seksi_peta_peran(kartu, pp),
+        _seksi_detail_peta_peran(kartu, pp),
+        _seksi_kartu_ekonomi_profil(kartu, pp),
     ]
-    ringkas_potensi, tabel_potensi = _seksi_potensi(kartu)
-    seksi.append(ringkas_potensi)
-    if tabel_potensi is not None:
-        seksi.append(tabel_potensi)
-    seksi.extend(
-        [
-            _seksi_kesiapan(kartu, pp),
-            _seksi_logistik(kartu, pp),
-            _seksi_desa_kembar(kartu),
-            _seksi_fakta_program(kartu),
-            _seksi_rekomendasi(kartu),
-            _seksi_mutu(kartu),
-        ]
-    )
+    tabel_subsektor = _seksi_kartu_ekonomi_subsektor(kartu)
+    if tabel_subsektor is not None:
+        seksi.append(tabel_subsektor)
+    seksi.append(_seksi_rekomendasi(kartu))
+    seksi.append(_seksi_citra_potensi(kartu, citra_unggulan))
+    seksi.append(_seksi_desa_kembar(kartu))
 
     if manifest is None:
         info_build = "data build tidak diketahui"
     else:
-        # `muat_manifest` (`src/datastore.py`) sengaja tidak memvalidasi isi
-        # manifest - tanggung jawab pemanggil. Ini cuma catatan kaki, jadi
-        # kunci yang hilang (build parsial/hand-edit/skew versi penulis)
-        # degradasi ke NILAI_KOSONG, bukan KeyError -> 500.
         hash_singkat = _teks(manifest.get("hash"))[:12]
         tanggal = _teks(manifest.get("tanggal"))
         info_build = f"data build {hash_singkat} ({tanggal})"
     catatan_kaki = (
-        f"SIMPUL DESA — {info_build}. Angka disajikan apa adanya dari keluaran data/."
+        f"SIMPUL DESA — {info_build}. Analisis spasial & ekonomi pedesaan terpadu."
     )
 
     return RingkasanLaporan(
-        judul=judul, subjudul=subjudul, seksi=seksi, catatan_kaki=catatan_kaki
+        judul=judul,
+        subjudul=subjudul,
+        seksi=seksi,
+        catatan_kaki=catatan_kaki,
+        identitas=identitas,
+        peta_peran=pp,
+        potensi=kartu.get("potensi") or {},
+        citra_unggulan=citra_unggulan,
+        desa_kembar=kartu.get("desa_kembar") or [],
+        rekomendasi_aksi=_teks(kartu.get("rekomendasi_aksi")),
     )
+

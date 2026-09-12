@@ -12,13 +12,9 @@ KOORDINAT_PLACEHOLDER: Final[tuple[float, float]] = (-6.2297465, 106.829518)
 NILAI_KOSONG: Final[str] = "-"
 
 JUDUL_SEKSI: Final[tuple[str, ...]] = (
-    "Identitas",
-    "Peta Peran",
-    "Potensi Dominan",
-    "Kesiapan",
-    "Logistik",
+    "Detail Peta Peran",
+    "Kartu Ekonomi Desa",
+    "Citra Potensi Unggulan",
     "Desa Kembar",
-    "Fakta Program",
-    "Rekomendasi Aksi",
-    "Mutu Data",
 )
+

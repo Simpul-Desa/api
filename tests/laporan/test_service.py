@@ -162,7 +162,6 @@ def test_sembilan_seksi_terbentuk() -> None:
 def test_kolom_mutu_selalu_ikut() -> None:
     kartu = _kartu_lengkap()
     kartu["potensi"]["sumber_dominan"] = ""
-    kartu["mutu_data"]["punya_st2023"] = False
     pp = _pp_lengkap(keyakinan="", alasan_belum_terpetakan="")
 
     laporan = rakit_ringkasan(kartu, pp, _manifest_lengkap())
@@ -170,8 +169,7 @@ def test_kolom_mutu_selalu_ikut() -> None:
     label_ke_nilai = _label_ke_nilai(laporan)
     assert label_ke_nilai["Keyakinan"] == NILAI_KOSONG
     assert label_ke_nilai["Alasan Belum Terpetakan"] == NILAI_KOSONG
-    assert label_ke_nilai["Sumber Potensi Dominan"] == NILAI_KOSONG
-    assert label_ke_nilai["Punya ST2023"] == "tidak"
+    assert label_ke_nilai["Sumber Model"] == NILAI_KOSONG
 
 
 @pytest.mark.unit
@@ -199,33 +197,13 @@ def test_koordinat_placeholder_disaring() -> None:
 def test_wisata_bukan_skor_potensi() -> None:
     laporan = rakit_ringkasan(_kartu_lengkap(), _pp_lengkap(), _manifest_lengkap())
 
-    kunci_wisata = {"jadesta", "desa_wisata_sisparnas", "n_daya_tarik_wisata"}
-    fakta_program = next(s for s in laporan.seksi if s.judul == "Fakta Program")
-    assert isinstance(fakta_program, SeksiRingkas)
-    label_fakta_program = {baris.label for baris in fakta_program.baris}
-    assert kunci_wisata <= label_fakta_program
-
     for seksi in laporan.seksi:
-        if seksi.judul == "Fakta Program":
-            continue
-        if isinstance(seksi, SeksiRingkas):
-            label_lain = {baris.label for baris in seksi.baris}
-        else:
-            label_lain = set(seksi.kepala)
-        assert not (
-            kunci_wisata & label_lain
-        ), f"field wisata bocor ke seksi {seksi.judul!r}"
-
-    for seksi in laporan.seksi:
-        label_teks = (
-            [baris.label for baris in seksi.baris]
-            if isinstance(seksi, SeksiRingkas)
-            else seksi.kepala
-        )
-        for label in label_teks:
-            rendah = label.lower()
-            if "skor potensi" in rendah:
-                assert not any(kata in rendah for kata in ("wisata", "jadesta"))
+        if isinstance(seksi, SeksiTabel):
+            assert not any("wisata" in sel.lower() for baris in seksi.baris for sel in baris)
+        elif isinstance(seksi, SeksiRingkas):
+            for baris in seksi.baris:
+                if "skor potensi" in baris.label.lower():
+                    assert "wisata" not in baris.nilai.lower()
 
 
 @pytest.mark.unit
@@ -419,7 +397,7 @@ def test_kode_kosong_sub_skor_ikut_terbawa() -> None:
     tabel = next(
         s
         for s in laporan.seksi
-        if isinstance(s, SeksiTabel) and s.judul == "Potensi Dominan"
+        if isinstance(s, SeksiTabel) and s.judul == "Kartu Ekonomi Desa"
     )
     assert tabel.kepala == ["Subsektor", "Skor", "Keterangan"]
     assert ["Perikanan Tangkap", NILAI_KOSONG, "TIDAK-BERLAKU"] in tabel.baris

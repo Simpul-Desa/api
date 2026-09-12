@@ -5,7 +5,7 @@ supaya isi laporan bisa diuji tanpa mem-parse PDF - `service.py`
 merakitnya, `pdf.py` merendernya.
 """
 
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import Field
 
@@ -38,3 +38,9 @@ class RingkasanLaporan(ModelDasar):
     subjudul: str
     seksi: list[Seksi]
     catatan_kaki: str
+    identitas: dict[str, Any] = Field(default_factory=dict)
+    peta_peran: dict[str, Any] = Field(default_factory=dict)
+    citra_unggulan: dict[str, Any] | None = None
+    desa_kembar: list[dict[str, Any]] = Field(default_factory=list)
+    rekomendasi_aksi: str = ""
+
