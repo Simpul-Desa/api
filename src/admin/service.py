@@ -129,7 +129,12 @@ async def daftar_pengguna(
 
 
 async def ubah_peran(klien: httpx.AsyncClient, id_pengguna: str, peran: str) -> bool:
-    """Ubah `peran` satu baris `profil`; `False` bila `id_pengguna` tidak ada."""
+    """Ubah `peran` satu baris `profil`; `False` bila `id_pengguna` tidak ada.
+
+    Setelah berhasil, entri cache peran untuk `id_pengguna` dihapus supaya
+    request berikutnya dari pengguna tersebut membaca peran baru dari DB —
+    bukan peran lama yang masih hidup di TTLCache selama sisa 5 menit.
+    """
     pengaturan = ambil_pengaturan()
     try:
         respons = await klien.patch(
@@ -142,7 +147,13 @@ async def ubah_peran(klien: httpx.AsyncClient, id_pengguna: str, peran: str) -> 
         baris = respons.json()
         if not isinstance(baris, list):
             raise TypeError(f"bentuk balasan ubah peran: {type(baris).__name__}")
-        return len(baris) > 0
+        ada = len(baris) > 0
+        if ada:
+            # Hapus cache supaya peran baru langsung berlaku tanpa menunggu TTL.
+            from src.auth.service import _CACHE_PERAN  # noqa: PLC0415
+
+            _CACHE_PERAN.pop(id_pengguna, None)
+        return ada
     except (httpx.HTTPError, TypeError, ValueError, ValidationError) as exc:
         logger.warning("PostgREST ubah peran tidak terjangkau atau rusak: %s", exc)
         raise GalatAPI(DATA_BELUM_SIAP, _GALAT_LAYANAN, 503) from exc

@@ -15,6 +15,7 @@ import pytest
 from fastapi import Depends, FastAPI
 
 from src.auth.schemas import Identitas
+from src.auth.service import _CACHE_PERAN
 from src.config import Pengaturan, ambil_pengaturan
 from src.exceptions import (
     AUTH_BELUM_SIAP,
@@ -32,6 +33,12 @@ from tests.auth.bantu import (
 from tests.conftest import PembuatKlien
 
 pytestmark = pytest.mark.anyio
+
+
+@pytest.fixture(autouse=True)
+def bersihkan_cache_peran() -> None:
+    """Kosongkan TTL cache peran sebelum setiap test agar state tidak bocor."""
+    _CACHE_PERAN.clear()
 
 
 @pytest.mark.integration

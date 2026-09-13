@@ -9,6 +9,11 @@ peran seseorang tanpa sepengetahuan basis data.
 `src/auth/dependencies.py` memanggil fungsi di berkas ini lewat objek
 modul, bukan lewat from-import: uji menambal atribut modul ini, dan nama
 yang sudah ter-bind di berkas lain tidak akan tersentuh tambalan itu.
+
+Cache peran: hasil `ambil_peran_profil` di-cache in-memory dengan TTL 5
+menit (TTLCache). Peran jarang berubah, sehingga cache ini mengurangi
+roundtrip HTTP ke Supabase PostgREST secara signifikan tanpa memengaruhi
+konsistensi data bagi use-case saat ini.
 """
 
 import logging
@@ -18,6 +23,7 @@ from typing import Any
 
 import httpx
 import jwt
+from cachetools import TTLCache
 
 from src.auth.constants import PERAN_TAMU_KE_ATAS
 from src.config import Pengaturan
@@ -29,6 +35,11 @@ from src.exceptions import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Cache peran per id_pengguna. TTL 5 menit; maxsize 1024 cukup untuk ribuan
+# pengguna aktif sekaligus tanpa konsumsi memori signifikan (~1 KB/entri).
+_CACHE_PERAN: TTLCache[str, str | None] = TTLCache(maxsize=1024, ttl=300)
+
 
 
 @lru_cache(maxsize=2)
@@ -112,6 +123,10 @@ async def ambil_peran_profil(
 ) -> str | None:
     """Ambil kolom `peran` pengguna dari tabel `profil` lewat PostgREST.
 
+    Hasil di-cache in-memory (TTL 5 menit) untuk mengurangi roundtrip ke
+    Supabase. Cache miss terjadi pada request pertama per pengguna atau
+    setelah TTL habis.
+
     Mengembalikan `None` bila belum ada baris profil untuk pengguna tersebut.
     Melempar `GalatAPI` 401 bila `id_pengguna` bukan UUID sah (tanpa memanggil
     jaringan), 503 bila PostgREST tidak terjangkau atau balasannya tidak
@@ -123,6 +138,10 @@ async def ambil_peran_profil(
         id_kanonik = str(uuid.UUID(id_pengguna))
     except ValueError as exc:
         raise GalatAPI(TIDAK_BERWENANG, "token tidak sah", 401) from exc
+
+    # Cache hit: hindari roundtrip HTTP ke Supabase PostgREST.
+    if id_kanonik in _CACHE_PERAN:
+        return _CACHE_PERAN[id_kanonik]
 
     kunci_layanan = pengaturan.supabase_service_role_key.get_secret_value()
     try:
@@ -146,6 +165,8 @@ async def ambil_peran_profil(
         logger.warning("bentuk balasan profil tidak dikenal: %s", type(baris).__name__)
         raise GalatAPI(AUTH_BELUM_SIAP, "layanan autentikasi tidak terjangkau", 503)
     if not baris:
+        # Profil belum terdaftar; tidak di-cache supaya pendaftaran baru
+        # langsung berlaku tanpa nunggu TTL.
         return None
 
     peran = baris[0].get("peran") if isinstance(baris[0], dict) else None
@@ -169,4 +190,8 @@ async def ambil_peran_profil(
             "peran akun ini tidak dikenal oleh layanan",
             403,
         )
+
+    # Simpan ke cache setelah validasi berhasil.
+    _CACHE_PERAN[id_kanonik] = str(peran)
     return str(peran)
+
