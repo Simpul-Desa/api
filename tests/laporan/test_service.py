@@ -16,6 +16,7 @@ from src.laporan.constants import JUDUL_SEKSI, KOORDINAT_PLACEHOLDER, NILAI_KOSO
 from src.laporan.schemas import RingkasanLaporan, SeksiRingkas, SeksiTabel
 from src.laporan.service import (
     _koordinat,
+    _seksi_ai_insight,
     _seksi_desa_kembar,
     _seksi_potensi,
     _teks,
@@ -421,3 +422,110 @@ def test_nama_provinsi_menggantikan_kode_bila_disuplai() -> None:
     assert ", 33 ·" in tanpa.subjudul
     assert ", Jawa Tengah ·" in dengan.subjudul
     assert "33" not in dengan.subjudul.split("·")[0]
+
+
+# ── AI Insight Desa ──────────────────────────────────────────────────────────
+
+
+@pytest.mark.unit
+def test_seksi_ai_insight_none_kembalikan_status_belum() -> None:
+    """Jika ai_insight=None, seksi harus memuat teks 'AI Insight belum di generate'."""
+    seksi = _seksi_ai_insight(None)
+
+    assert isinstance(seksi, SeksiRingkas)
+    assert seksi.judul == "AI Insight Desa"
+    assert any("belum di generate" in b.nilai for b in seksi.baris)
+
+
+@pytest.mark.unit
+def test_seksi_ai_insight_dict_kosong_kembalikan_status_belum() -> None:
+    """Dict kosong {} dianggap belum di-generate."""
+    seksi = _seksi_ai_insight({})
+
+    assert isinstance(seksi, SeksiRingkas)
+    assert any("belum di generate" in b.nilai for b in seksi.baris)
+
+
+@pytest.mark.unit
+def test_seksi_ai_insight_terisi_kondisi_ekonomi() -> None:
+    """Jika kondisi_ekonomi terisi, label 'Kondisi Ekonomi' ada di baris."""
+    seksi = _seksi_ai_insight(
+        {"kondisi_ekonomi": "Desa ini memiliki potensi besar.", "rekomendasi_aktor": []}
+    )
+
+    assert isinstance(seksi, SeksiRingkas)
+    assert any(b.label == "Kondisi Ekonomi" for b in seksi.baris)
+    assert any("potensi besar" in b.nilai for b in seksi.baris)
+
+
+@pytest.mark.unit
+def test_seksi_ai_insight_rekomendasi_aktor_jadi_baris_aksi() -> None:
+    """Setiap item rekomendasi_aktor menjadi BarisNilai bertanda 'Aksi (...)'."""
+    seksi = _seksi_ai_insight(
+        {
+            "kondisi_ekonomi": "Kondisi baik.",
+            "rekomendasi_aktor": [
+                {"aktor": "Swasta", "aksi": "Berinvestasi dalam kopi."},
+                {"aktor": "Pemerintah Desa", "aksi": "Gunakan Dana Desa."},
+            ],
+        }
+    )
+
+    label_set = {b.label for b in seksi.baris}
+    assert "Aksi (Swasta)" in label_set
+    assert "Aksi (Pemerintah Desa)" in label_set
+
+
+@pytest.mark.unit
+def test_seksi_ai_insight_teks_lengkap_fallback() -> None:
+    """Jika rekomendasi_aktor kosong tapi teks_lengkap ada, pakai teks_lengkap."""
+    seksi = _seksi_ai_insight(
+        {"kondisi_ekonomi": "", "rekomendasi_aktor": [], "teks_lengkap": "Analisis lengkap."}
+    )
+
+    # kondisi_ekonomi kosong → tidak ada baris Kondisi Ekonomi
+    # teks_lengkap tersedia sebagai fallback
+    assert any("Ringkasan Analisis" in b.label or "Analisis lengkap" in b.nilai for b in seksi.baris)
+
+
+@pytest.mark.unit
+def test_rakit_ringkasan_ai_insight_none_ikut_serta() -> None:
+    """Tanpa ai_insight, laporan tetap terbentuk dan seksi AI Insight hadir
+    dengan status belum di-generate."""
+    laporan = rakit_ringkasan(_kartu_lengkap(), _pp_lengkap(), _manifest_lengkap())
+
+    seksi_ai = next(
+        (s for s in laporan.seksi if s.judul == "AI Insight Desa"),
+        None,
+    )
+    assert seksi_ai is not None
+    assert isinstance(seksi_ai, SeksiRingkas)
+    assert any("belum di generate" in b.nilai for b in seksi_ai.baris)
+
+
+@pytest.mark.unit
+def test_rakit_ringkasan_ai_insight_tersedia_tampil_di_seksi() -> None:
+    """Jika ai_insight disuplai, kontennya muncul di seksi AI Insight."""
+    ai_insight = {
+        "iddesa": "1801040001",
+        "kondisi_ekonomi": "Potensi logistik sangat tinggi.",
+        "rekomendasi_aktor": [{"aktor": "Swasta", "aksi": "Bangun gudang distribusi."}],
+        "teks_lengkap": "Desa ini strategis.",
+    }
+    laporan = rakit_ringkasan(
+        _kartu_lengkap(), _pp_lengkap(), _manifest_lengkap(), ai_insight=ai_insight
+    )
+
+    seksi_ai = next(s for s in laporan.seksi if s.judul == "AI Insight Desa")
+    assert isinstance(seksi_ai, SeksiRingkas)
+    assert any(b.label == "Kondisi Ekonomi" for b in seksi_ai.baris)
+    assert any("Aksi (Swasta)" in b.label for b in seksi_ai.baris)
+
+
+@pytest.mark.unit
+def test_rakit_ringkasan_judul_seksi_urutan_benar() -> None:
+    """JUDUL_SEKSI mencakup 'AI Insight Desa' dan urutan seksi sesuai konstanta."""
+    laporan = rakit_ringkasan(_kartu_lengkap(), _pp_lengkap(), _manifest_lengkap())
+
+    assert tuple(_judul_unik_berurutan(laporan)) == JUDUL_SEKSI
+    assert JUDUL_SEKSI[-1] == "AI Insight Desa"

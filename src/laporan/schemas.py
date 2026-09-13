@@ -40,7 +40,10 @@ class RingkasanLaporan(ModelDasar):
     catatan_kaki: str
     identitas: dict[str, Any] = Field(default_factory=dict)
     peta_peran: dict[str, Any] = Field(default_factory=dict)
+    potensi: dict[str, Any] = Field(default_factory=dict)
     citra_unggulan: dict[str, Any] | None = None
     desa_kembar: list[dict[str, Any]] = Field(default_factory=list)
     rekomendasi_aksi: str = ""
+    ai_insight: dict[str, Any] | None = None
+
 

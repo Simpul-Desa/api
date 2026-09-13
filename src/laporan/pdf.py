@@ -47,6 +47,11 @@ C_CALLOUT_BG = HexColor("#f0fdf4")
 C_CALLOUT_BORDER = HexColor("#059669")
 C_SKY_BG = HexColor("#f0f9ff")
 C_SKY_BORDER = HexColor("#0284c7")
+C_PURPLE_BG = HexColor("#faf5ff")
+C_PURPLE_BORDER = HexColor("#a855f7")
+C_AMBER_BG = HexColor("#fffbeb")
+C_AMBER_BORDER = HexColor("#f59e0b")
+
 
 WARNA_ZONA_MAP: Final[dict[str, tuple[HexColor, HexColor]]] = {
     "Zona Poros": (HexColor("#00a9bf"), HexColor("#e0f7fa")),
@@ -207,7 +212,56 @@ def _gaya() -> dict[str, ParagraphStyle]:
             textColor=C_SLATE_700,
             leading=9,
         ),
+        "ai_belum_judul": ParagraphStyle(
+            "AIBelumJudul",
+            parent=dasar["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=8,
+            textColor=HexColor("#92400e"),
+            leading=10,
+        ),
+        "ai_belum_keterangan": ParagraphStyle(
+            "AIBelumKeterangan",
+            parent=dasar["Normal"],
+            fontName="Helvetica",
+            fontSize=7.5,
+            textColor=HexColor("#78350f"),
+            leading=9.5,
+        ),
+        "ai_kondisi_label": ParagraphStyle(
+            "AIKondisiLabel",
+            parent=dasar["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=7.5,
+            textColor=HexColor("#4c1d95"),
+            leading=9.5,
+        ),
+        "ai_kondisi_teks": ParagraphStyle(
+            "AIKondisiTeks",
+            parent=dasar["Normal"],
+            fontName="Helvetica",
+            fontSize=7.5,
+            textColor=C_SLATE_900,
+            leading=10,
+        ),
+        "ai_aktor_badge": ParagraphStyle(
+            "AIAktorBadge",
+            parent=dasar["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=7.5,
+            textColor=HexColor("#4c1d95"),
+            leading=9.5,
+        ),
+        "ai_aksi_teks": ParagraphStyle(
+            "AIAksiTeks",
+            parent=dasar["Normal"],
+            fontName="Helvetica",
+            fontSize=7.5,
+            textColor=C_SLATE_900,
+            leading=9.5,
+        ),
     }
+
 
 
 def _flow_kpi_cards(
@@ -379,6 +433,107 @@ def _flow_ringkas(
         flow.append(tabel_citra)
         flow.append(Spacer(1, 3 * mm))
         return flow
+
+    # Khusus AI Insight Desa: render callout status belum di-generate atau kartu insight naratif & aksi aktor
+    if seksi.judul == "AI Insight Desa":
+        is_belum_generate = any(
+            "belum di generate" in b.nilai.lower() or "belum di-generate" in b.nilai.lower()
+            for b in seksi.baris
+        )
+        if is_belum_generate:
+            konten_belum = [
+                [
+                    Paragraph(
+                        "<b>PEMBERITAHUAN:</b> AI Insight belum di generate",
+                        gaya["ai_belum_judul"],
+                    )
+                ],
+                [Spacer(1, 1 * mm)],
+                [
+                    Paragraph(
+                        "Analisis kondisi ekonomi dan rekomendasi aksi aktor berbasis AI belum di-generate untuk desa ini. "
+                        "Buka portal Simpul Desa pada panel AI Insight untuk menghasilkan analisis mendalam secara otomatis.",
+                        gaya["ai_belum_keterangan"],
+                    )
+                ],
+            ]
+            tabel_belum = Table(konten_belum, colWidths=[_LEBAR_TEKS_HALAMAN])
+            tabel_belum.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, -1), C_AMBER_BG),
+                        ("BOX", (0, 0), (-1, -1), 0.75, C_AMBER_BORDER),
+                        ("LINEBEFORE", (0, 0), (0, -1), 3.5, C_AMBER_BORDER),
+                        ("TOPPADDING", (0, 0), (-1, -1), 4.5),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 4.5),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 7),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+                    ]
+                )
+            )
+            flow.append(tabel_belum)
+            flow.append(Spacer(1, 3 * mm))
+            return flow
+
+        # AI Insight yang sudah di-generate
+        for baris in seksi.baris:
+            if baris.label == "Kondisi Ekonomi":
+                isi_kondisi = [
+                    [Paragraph("<b>Insight Kondisi Ekonomi Desa:</b>", gaya["ai_kondisi_label"])],
+                    [Spacer(1, 1 * mm)],
+                    [Paragraph(_aman(baris.nilai), gaya["ai_kondisi_teks"])],
+                ]
+                tabel_kondisi = Table(isi_kondisi, colWidths=[_LEBAR_TEKS_HALAMAN])
+                tabel_kondisi.setStyle(
+                    TableStyle(
+                        [
+                            ("BACKGROUND", (0, 0), (-1, -1), C_PURPLE_BG),
+                            ("BOX", (0, 0), (-1, -1), 0.75, C_PURPLE_BORDER),
+                            ("LINEBEFORE", (0, 0), (0, -1), 3.5, C_PURPLE_BORDER),
+                            ("TOPPADDING", (0, 0), (-1, -1), 4.5),
+                            ("BOTTOMPADDING", (0, 0), (-1, -1), 4.5),
+                            ("LEFTPADDING", (0, 0), (-1, -1), 7),
+                            ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+                        ]
+                    )
+                )
+                flow.append(tabel_kondisi)
+                flow.append(Spacer(1, 2 * mm))
+            elif baris.label.startswith("Aksi ("):
+                nama_aktor = baris.label[6:-1] if baris.label.endswith(")") else baris.label
+                data_aktor = [
+                    [
+                        Paragraph(f"<b>{_aman(nama_aktor)}</b>", gaya["ai_aktor_badge"]),
+                        Paragraph(_aman(baris.nilai), gaya["ai_aksi_teks"]),
+                    ]
+                ]
+                tabel_aksi = Table(
+                    data_aktor, colWidths=[40 * mm, _LEBAR_TEKS_HALAMAN - 40 * mm]
+                )
+                tabel_aksi.setStyle(
+                    TableStyle(
+                        [
+                            ("BACKGROUND", (0, 0), (0, 0), HexColor("#f3e8ff")),
+                            ("BACKGROUND", (1, 0), (1, 0), C_WHITE),
+                            ("BOX", (0, 0), (-1, -1), 0.5, HexColor("#d8b4fe")),
+                            ("INNERGRID", (0, 0), (-1, -1), 0.5, HexColor("#e9d5ff")),
+                            ("TOPPADDING", (0, 0), (-1, -1), 3),
+                            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                            ("LEFTPADDING", (0, 0), (-1, -1), 5),
+                            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+                        ]
+                    )
+                )
+                flow.append(tabel_aksi)
+                flow.append(Spacer(1, 1.5 * mm))
+            else:
+                teks_umum = f"<b>{_aman(baris.label)}:</b> {_aman(baris.nilai)}"
+                flow.append(Paragraph(teks_umum, gaya["normal"]))
+                flow.append(Spacer(1, 1.5 * mm))
+
+        flow.append(Spacer(1, 2 * mm))
+        return flow
+
 
     # Default SeksiRingkas: 2 pasang kolom (Label 1, Nilai 1, Label 2, Nilai 2)
     # Jika baris genap/banyak, jadikan grid 4 kolom untuk menghemat ruang

@@ -326,15 +326,60 @@ def _seksi_desa_kembar(kartu: dict[str, Any]) -> SeksiTabel | SeksiRingkas:
     )
 
 
+def _seksi_ai_insight(ai_insight: dict[str, Any] | None) -> SeksiRingkas:
+    """Rakit seksi AI Insight Desa.
+
+    Jika AI Insight belum digenerate atau kosong, kembalikan status penanda
+    eksplisit 'AI Insight belum di generate'.
+    """
+    if not ai_insight or not (
+        ai_insight.get("kondisi_ekonomi") or ai_insight.get("teks_lengkap")
+    ):
+        return SeksiRingkas(
+            judul=JUDUL_SEKSI[4],
+            baris=[
+                BarisNilai(label="Status", nilai="AI Insight belum di generate"),
+                BarisNilai(
+                    label="Keterangan",
+                    nilai="Analisis kondisi ekonomi dan rekomendasi aksi aktor berbasis AI belum di-generate untuk desa ini.",
+                ),
+            ],
+        )
+
+    baris: list[BarisNilai] = []
+    kondisi = ai_insight.get("kondisi_ekonomi")
+    if kondisi:
+        baris.append(BarisNilai(label="Kondisi Ekonomi", nilai=_teks(kondisi)))
+
+    rekomendasi_aktor = ai_insight.get("rekomendasi_aktor")
+    if rekomendasi_aktor and isinstance(rekomendasi_aktor, list):
+        for item in rekomendasi_aktor:
+            if isinstance(item, dict):
+                aktor = item.get("aktor") or "Aksi Aktor"
+                aksi = item.get("aksi") or item.get("rekomendasi") or "-"
+                baris.append(BarisNilai(label=f"Aksi ({aktor})", nilai=_teks(aksi)))
+
+    if not rekomendasi_aktor and ai_insight.get("teks_lengkap"):
+        baris.append(
+            BarisNilai(
+                label="Ringkasan Analisis",
+                nilai=_teks(ai_insight.get("teks_lengkap")),
+            )
+        )
+
+    return SeksiRingkas(judul=JUDUL_SEKSI[4], baris=baris)
+
+
 def rakit_ringkasan(
     kartu: dict[str, Any],
     pp: dict[str, Any],
     manifest: dict[str, Any] | None,
     nama_provinsi: str | None = None,
     citra_unggulan: dict[str, Any] | None = None,
+    ai_insight: dict[str, Any] | None = None,
 ) -> RingkasanLaporan:
     """Rakit Laporan Desa komprehensif: Detail Peta Peran, Kartu Ekonomi Desa,
-    Citra Potensi Unggulan, dan Desa Kembar."""
+    Citra Potensi Unggulan, Desa Kembar, dan AI Insight Desa."""
     identitas = kartu.get("identitas") or {}
     judul = f"LAPORAN DESA — {_teks(identitas.get('nama'))}"
     provinsi = nama_provinsi or identitas.get("provinsi")
@@ -360,6 +405,7 @@ def rakit_ringkasan(
     seksi.append(_seksi_rekomendasi(kartu))
     seksi.append(_seksi_citra_potensi(kartu, citra_unggulan))
     seksi.append(_seksi_desa_kembar(kartu))
+    seksi.append(_seksi_ai_insight(ai_insight))
 
     if manifest is None:
         info_build = "data build tidak diketahui"
@@ -382,5 +428,7 @@ def rakit_ringkasan(
         citra_unggulan=citra_unggulan,
         desa_kembar=kartu.get("desa_kembar") or [],
         rekomendasi_aksi=_teks(kartu.get("rekomendasi_aksi")),
+        ai_insight=ai_insight,
     )
+
 

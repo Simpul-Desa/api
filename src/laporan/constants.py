@@ -16,5 +16,7 @@ JUDUL_SEKSI: Final[tuple[str, ...]] = (
     "Kartu Ekonomi Desa",
     "Citra Potensi Unggulan",
     "Desa Kembar",
+    "AI Insight Desa",
 )
+
 
